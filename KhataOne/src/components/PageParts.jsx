@@ -1,5 +1,88 @@
-import { money } from '../utils/calculations.js'
-export function Heading({ eyebrow, title, action, onAction, children }) { return <><section className="mb-7 flex flex-col items-start justify-between gap-4 sm:flex-row"><div><p className="mb-1.5 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">{eyebrow}</p><h1 className="font-serif text-3xl font-bold leading-tight sm:text-4xl">{title}</h1></div>{action && <button className="rounded-lg bg-[#8f2039] px-3.5 py-2.5 text-xs font-bold text-white" onClick={onAction}>＋ {action}</button>}</section>{children}</> }
-export function Stat({ label, value, icon, tone = '', featured = false }) { return <div className={`rounded-xl border border-[#ebe7e3] bg-white p-4 shadow-sm dark:border-[#423238] dark:bg-[#2b2226] ${featured ? 'border-t-2 border-t-[#8f2039]' : ''}`}><div className="flex items-center justify-between text-[10px] text-[#8b8383]"><span>{label}</span><span className={`grid size-6 place-items-center rounded-full bg-[#f8e9ec] text-[#8f2039] ${tone === 'green' ? 'bg-[#e7f2eb] text-[#468264]' : tone === 'amber' ? 'bg-[#fbf1d8] text-[#b4822e]' : ''}`}>{icon}</span></div><strong className="my-3 block text-2xl">{value}</strong><div className="flex gap-1 text-[10px] text-[#8b8383]"><span className="font-bold text-[#4c956d]">Live</span><span>calculated now</span></div></div> }
-export function CustomerRow({ customer, onClick }) { return <button className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-[#fbf1f1] dark:hover:bg-[#38282d]" onClick={onClick}><div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#fbecef] text-xs font-bold text-[#8f2039]">{customer.name.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><strong className="block text-sm">{customer.name}</strong><span className="text-xs text-[#8b8383]">{customer.status}</span></div><div className="hidden text-right sm:block"><small className="block text-[10px] text-[#8b8383]">Trust score</small><strong>{customer.score}<small>/100</small></strong></div><div className="text-right"><small className="block text-[10px] text-[#8b8383]">Outstanding</small><strong>{money(customer.outstanding)}</strong></div><span className="text-[#8f2039]">↗</span></button> }
-export function PanelHeading({ eyebrow, title, children }) { return <div className="mb-4 flex items-start justify-between"><div><p className="mb-1.5 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">{eyebrow}</p><h2 className="font-serif text-xl font-bold">{title}</h2></div>{children}</div> }
+import { money } from "../utils/calculations.js";
+export function Heading({ eyebrow, title, action, onAction, children }) {
+  return (
+    <>
+      <section className="mb-7 flex flex-col items-start justify-between gap-4 sm:flex-row">
+        <div>
+          <p className="mb-1.5 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">
+            {eyebrow}
+          </p>
+          <h1 className="font-serif text-3xl font-bold leading-tight sm:text-4xl">
+            {title}
+          </h1>
+        </div>
+        {action && (
+          <button
+            className="rounded-lg bg-[#8f2039] px-3.5 py-2.5 text-xs font-bold text-white"
+            onClick={onAction}
+          >
+            ＋ {action}
+          </button>
+        )}
+      </section>
+      {children}
+    </>
+  );
+}
+export function Stat({ label, value, icon, tone = "", featured = false }) {
+  return (
+    <div
+      className={`rounded-xl border border-[#ebe7e3] bg-white p-4 shadow-sm dark:border-[#423238] dark:bg-[#2b2226] ${featured ? "border-t-2 border-t-[#8f2039]" : ""}`}
+    >
+      <div className="flex items-center justify-between text-[10px] text-[#8b8383]">
+        <span>{label}</span>
+        <span
+          className={`grid size-6 place-items-center rounded-full bg-[#f8e9ec] text-[#8f2039] ${tone === "green" ? "bg-[#e7f2eb] text-[#468264]" : tone === "amber" ? "bg-[#fbf1d8] text-[#b4822e]" : ""}`}
+        >
+          {icon}
+        </span>
+      </div>
+      <strong className="my-3 block text-2xl">{value}</strong>
+      <div className="flex gap-1 text-[10px] text-[#8b8383]">
+        <span className="font-bold text-[#4c956d]">Live</span>
+        <span>calculated now</span>
+      </div>
+    </div>
+  );
+}
+export function CustomerRow({ customer, onClick }) {
+  return (
+    <button
+      className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-[#fbf1f1] dark:hover:bg-[#38282d]"
+      onClick={onClick}
+    >
+      <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#fbecef] text-xs font-bold text-[#8f2039]">
+        {customer.name.slice(0, 2).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <strong className="block text-sm">{customer.name}</strong>
+        <span className="text-xs text-[#8b8383]">{customer.status}</span>
+      </div>
+      <div className="hidden text-right sm:block">
+        <small className="block text-[10px] text-[#8b8383]">Trust score</small>
+        <strong>
+          {customer.score}
+          <small>/100</small>
+        </strong>
+      </div>
+      <div className="text-right">
+        <small className="block text-[10px] text-[#8b8383]">Outstanding</small>
+        <strong>{money(customer.outstanding)}</strong>
+      </div>
+      <span className="text-[#8f2039]">↗</span>
+    </button>
+  );
+}
+export function PanelHeading({ eyebrow, title, children }) {
+  return (
+    <div className="mb-4 flex items-start justify-between">
+      <div>
+        <p className="mb-1.5 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">
+          {eyebrow}
+        </p>
+        <h2 className="font-serif text-xl font-bold">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}

@@ -1,5 +1,68 @@
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from "lucide-react";
 
 export default function AIInsights({ risky, likely, money }) {
-  return <section className="rounded-xl border border-[#ebe7e3] bg-white p-5 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]"><div className="mb-4 flex items-center gap-2"><Sparkles size={16} className="text-[#8f2039]" /><h2 className="font-serif text-xl font-bold">AI insights</h2></div><div className="grid gap-3 md:grid-cols-3">{[['Expected collections this week', `${money(48500)} across 6 customers.`, `${money(32000)} is high probability.`], ['Pending payments rising', 'Your pending amount increased by 18% compared to last month.', ''], ['Cash flow prediction', `At the current pace you will close September with ${money(74000)} collected.`, '']].map(([title, text, detail]) => <article className="rounded-lg bg-[#fbf1ed] p-4 dark:bg-[#402b2e]" key={title}><strong className="text-sm">{title}</strong><p className="my-2 text-xs text-[#8b8383]">{text}</p><span className="text-xs text-[#468264]">{detail}</span></article>)}</div><div className="mt-6 grid gap-5 md:grid-cols-2"><div><h3 className="mb-2 text-sm font-bold">High-risk customers</h3>{risky.map((item) => <div className="flex justify-between border-b border-[#ebe7e3] py-2 text-xs" key={item.id}><strong>{item.name}</strong><span className="text-[#bf6873]">{item.score}/100 · {money(item.outstanding)}</span></div>)}</div><div><h3 className="mb-2 text-sm font-bold">Likely to pay soon</h3>{likely.map((item) => <div className="flex justify-between border-b border-[#ebe7e3] py-2 text-xs" key={item.id}><strong>{item.name}</strong><span className="text-[#468264]">{item.score}% likely</span></div>)}</div></div></section>
+  return (
+    <section className="rounded-xl border border-[#ebe7e3] bg-white p-5 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]">
+      <div className="mb-4 flex items-center gap-2">
+        <Sparkles size={16} className="text-[#8f2039]" />
+        <h2 className="font-serif text-xl font-bold">AI insights</h2>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        {[
+          [
+            "Expected collections this week",
+            `${money(48500)} across 6 customers.`,
+            `${money(32000)} is high probability.`,
+          ],
+          [
+            "Pending payments rising",
+            "Your pending amount increased by 18% compared to last month.",
+            "",
+          ],
+          [
+            "Cash flow prediction",
+            `At the current pace you will close September with ${money(74000)} collected.`,
+            "",
+          ],
+        ].map(([title, text, detail]) => (
+          <article
+            className="rounded-lg bg-[#fbf1ed] p-4 dark:bg-[#402b2e]"
+            key={title}
+          >
+            <strong className="text-sm">{title}</strong>
+            <p className="my-2 text-xs text-[#8b8383]">{text}</p>
+            <span className="text-xs text-[#468264]">{detail}</span>
+          </article>
+        ))}
+      </div>
+      <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-sm font-bold">High-risk customers</h3>
+          {risky.map((item) => (
+            <div
+              className="flex justify-between border-b border-[#ebe7e3] py-2 text-xs"
+              key={item.id}
+            >
+              <strong>{item.name}</strong>
+              <span className="text-[#bf6873]">
+                {item.score}/100 · {money(item.outstanding)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-bold">Likely to pay soon</h3>
+          {likely.map((item) => (
+            <div
+              className="flex justify-between border-b border-[#ebe7e3] py-2 text-xs"
+              key={item.id}
+            >
+              <strong>{item.name}</strong>
+              <span className="text-[#468264]">{item.score}% likely</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }

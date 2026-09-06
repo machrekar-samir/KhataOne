@@ -1,2 +1,6 @@
-export const saveTransaction = (transactions, value) => transactions.some((item) => item.id === value.id) ? transactions.map((item) => item.id === value.id ? value : item) : [...transactions, { ...value, id: crypto.randomUUID() }]
-export const removeTransaction = (transactions, id) => transactions.filter((item) => item.id !== id)
+export const saveTransaction = (transactions, value) =>
+  transactions.some((item) => item.id === value.id)
+    ? transactions.map((item) => (item.id === value.id ? value : item))
+    : [...transactions, { ...value, id: crypto.randomUUID() }];
+export const removeTransaction = (transactions, id) =>
+  transactions.filter((item) => item.id !== id);

@@ -1,1 +1,1 @@
-export { useApp as useCustomerContext } from './AppContext.jsx'
+export { useApp as useCustomerContext } from "./AppContext.jsx";

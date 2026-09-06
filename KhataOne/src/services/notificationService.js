@@ -1,1 +1,1 @@
-export const queueNotification = (notification) => notification
+export const queueNotification = (notification) => notification;

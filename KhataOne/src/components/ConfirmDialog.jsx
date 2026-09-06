@@ -1,1 +1,3 @@
-export default function ConfirmDialog({ children }) { return children }
+export default function ConfirmDialog({ children }) {
+  return children;
+}

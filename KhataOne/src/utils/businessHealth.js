@@ -1,1 +1,1 @@
-export const businessHealth = (totals) => totals.health
+export const businessHealth = (totals) => totals.health;

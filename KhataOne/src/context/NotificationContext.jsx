@@ -1,1 +1,1 @@
-export { useApp as useNotificationContext } from './AppContext.jsx'
+export { useApp as useNotificationContext } from "./AppContext.jsx";

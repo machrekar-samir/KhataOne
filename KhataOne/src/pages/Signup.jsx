@@ -1,1 +1,35 @@
-import { Link } from 'react-router-dom'; export default function Signup() { return <div className="grid min-h-screen place-items-center bg-[#f8f6f3] p-4 transition-colors duration-300 dark:bg-[#211b1e]"><div className="w-full max-w-md rounded-xl border border-[#ebe7e3] bg-white p-6 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]"><h1 className="font-serif text-3xl font-bold">Create your account</h1><div className="my-6 space-y-3"><input className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]" placeholder="Name" /><input className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]" placeholder="Email" type="email" /><input className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]" placeholder="Password" type="password" /></div><button className="w-full rounded-lg bg-[#8f2039] px-3.5 py-2.5 text-xs font-bold text-white">Sign up</button><Link className="mt-4 block text-center text-xs font-bold text-[#8f2039]" to="/login">Already have an account?</Link></div></div> }
+import { Link } from "react-router-dom";
+export default function Signup() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#f8f6f3] p-4 transition-colors duration-300 dark:bg-[#211b1e]">
+      <div className="w-full max-w-md rounded-xl border border-[#ebe7e3] bg-white p-6 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]">
+        <h1 className="font-serif text-3xl font-bold">Create your account</h1>
+        <div className="my-6 space-y-3">
+          <input
+            className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]"
+            placeholder="Name"
+          />
+          <input
+            className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]"
+            placeholder="Email"
+            type="email"
+          />
+          <input
+            className="w-full rounded-lg border border-[#ebe7e3] bg-white px-3 py-2.5 text-sm dark:border-[#423238] dark:bg-[#211b1e]"
+            placeholder="Password"
+            type="password"
+          />
+        </div>
+        <button className="w-full rounded-lg bg-[#8f2039] px-3.5 py-2.5 text-xs font-bold text-white">
+          Sign up
+        </button>
+        <Link
+          className="mt-4 block text-center text-xs font-bold text-[#8f2039]"
+          to="/login"
+        >
+          Already have an account?
+        </Link>
+      </div>
+    </div>
+  );
+}

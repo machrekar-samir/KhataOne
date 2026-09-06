@@ -1,3 +1,45 @@
-import { Heading } from '../components/PageParts.jsx'
-import { useApp } from '../context/AppContext.jsx'
-export default function Notifications() { const { data } = useApp(); return <Heading eyebrow="ACTIVITY CENTER" title="Notifications"><div className="rounded-xl border border-[#ebe7e3] bg-white p-5 dark:border-[#423238] dark:bg-[#2b2226]"><p className="mb-3 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">TODAY</p>{data.notifications.length ? data.notifications.map((item) => <div className="flex items-start gap-3 border-b border-[#ebe7e3] py-3 last:border-0 dark:border-[#423238]" key={item.id}><span className="text-[#8f2039]">✦</span><div><strong className="text-sm">{item.text}</strong><p className="mt-1 text-xs text-[#8b8383]">KhataOne activity</p></div><i className={`ml-auto mt-1 size-2 rounded-full ${item.read ? 'bg-[#d8cfca]' : 'bg-[#8f2039]'}`} /></div>) : <p className="text-sm text-[#8b8383]">You are all caught up.</p>}<p className="mb-3 mt-6 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">EARLIER</p><div className="flex items-start gap-3"><span className="text-[#8b8383]">✓</span><div><strong className="text-sm">Your workspace is ready</strong><p className="mt-1 text-xs text-[#8b8383]">Start by adding a customer or transaction.</p></div></div></div></Heading> }
+import { Heading } from "../components/PageParts.jsx";
+import { useApp } from "../context/AppContext.jsx";
+export default function Notifications() {
+  const { data } = useApp();
+  return (
+    <Heading eyebrow="ACTIVITY CENTER" title="Notifications">
+      <div className="rounded-xl border border-[#ebe7e3] bg-white p-5 dark:border-[#423238] dark:bg-[#2b2226]">
+        <p className="mb-3 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">
+          TODAY
+        </p>
+        {data.notifications.length ? (
+          data.notifications.map((item) => (
+            <div
+              className="flex items-start gap-3 border-b border-[#ebe7e3] py-3 last:border-0 dark:border-[#423238]"
+              key={item.id}
+            >
+              <span className="text-[#8f2039]">✦</span>
+              <div>
+                <strong className="text-sm">{item.text}</strong>
+                <p className="mt-1 text-xs text-[#8b8383]">KhataOne activity</p>
+              </div>
+              <i
+                className={`ml-auto mt-1 size-2 rounded-full ${item.read ? "bg-[#d8cfca]" : "bg-[#8f2039]"}`}
+              />
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-[#8b8383]">You are all caught up.</p>
+        )}
+        <p className="mb-3 mt-6 text-[9px] font-bold tracking-[1.2px] text-[#aaa0a0]">
+          EARLIER
+        </p>
+        <div className="flex items-start gap-3">
+          <span className="text-[#8b8383]">✓</span>
+          <div>
+            <strong className="text-sm">Your workspace is ready</strong>
+            <p className="mt-1 text-xs text-[#8b8383]">
+              Start by adding a customer or transaction.
+            </p>
+          </div>
+        </div>
+      </div>
+    </Heading>
+  );
+}
