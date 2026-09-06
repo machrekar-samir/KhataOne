@@ -1,1 +1,1 @@
-export default function Card({ children, className = '' }) { return <div className={`panel ${className}`}>{children}</div> }
+export default function Card({ children, className = '' }) { return <div className={`rounded-xl border border-[#ebe7e3] bg-white p-5 shadow-[0_8px_25px_rgba(77,49,49,0.05)] dark:border-[#423238] dark:bg-[#2b2226] ${className}`}>{children}</div> }

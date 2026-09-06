@@ -1,1 +1,1 @@
-export default function EmptyState({ text, action, onAction }) { return <div className="empty-state"><p>{text}</p>{action && <button className="text-button" onClick={onAction}>{action} ↗</button>}</div> }
+export default function EmptyState({ text, action, onAction }) { return <div className="rounded-xl border border-dashed border-[#d8cfca] px-5 py-12 text-center text-sm text-[#8b8383] dark:border-[#423238] dark:text-[#bbaeb1]"><p>{text}</p>{action && <button className="mt-3 font-bold text-[#8f2039]" onClick={onAction}>{action} ↗</button>}</div> }
