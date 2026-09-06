@@ -1,0 +1,1 @@
+export const dateKey = (value = new Date()) => new Date(value).toISOString().slice(0, 10)

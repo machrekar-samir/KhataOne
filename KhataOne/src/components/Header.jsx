@@ -1,0 +1,4 @@
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../context/AppContext.jsx'
+import { Bell, Moon, Search, Sun } from 'lucide-react'
+export default function Header() { const navigate = useNavigate(); const { dark, toggleTheme } = useApp(); return <header className="topbar"><button className="reference-search" onClick={() => navigate('/customers')}><Search size={15} /> Search or type a command... <kbd>⌘ K</kbd></button><div className="top-actions"><button className="header-icon" aria-label="Toggle theme" onClick={toggleTheme}>{dark ? <Sun size={16} /> : <Moon size={16} />}</button><button className="header-icon notification-button" aria-label="Notifications" onClick={() => navigate('/notifications')}><Bell size={17} /><i>3</i></button><button className="header-avatar" onClick={() => navigate('/settings')}>SM</button></div></header> }

@@ -1,0 +1,1 @@
+export default function EmptyState({ text, action, onAction }) { return <div className="empty-state"><p>{text}</p>{action && <button className="text-button" onClick={onAction}>{action} ↗</button>}</div> }

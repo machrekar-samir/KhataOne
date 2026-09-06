@@ -1,0 +1,1 @@
+export { useApp as useCustomerContext } from './AppContext.jsx'

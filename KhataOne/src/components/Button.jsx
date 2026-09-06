@@ -1,0 +1,1 @@
+export default function Button({ children, className = 'add-button', ...props }) { return <button className={className} {...props}>{children}</button> }

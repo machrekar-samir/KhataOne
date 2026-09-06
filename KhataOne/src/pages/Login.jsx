@@ -1,0 +1,1 @@
+import { Link } from 'react-router-dom'; export default function Login() { return <div className="auth-page"><div className="panel"><h1>Welcome back</h1><p>Sign in to KhataOne</p><input placeholder="Email" type="email" /><input placeholder="Password" type="password" /><button className="add-button">Sign in</button><Link to="/signup">Create an account</Link></div></div> }

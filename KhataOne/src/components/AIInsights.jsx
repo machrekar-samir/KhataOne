@@ -1,0 +1,5 @@
+import { Sparkles } from 'lucide-react'
+
+export default function AIInsights({ risky, likely, money }) {
+  return <section className="reference-panel ai-insights-panel"><div className="reference-panel-head"><h2><Sparkles size={16} /> AI insights</h2></div><div className="insight-cards"><article><strong>Expected collections this week</strong><p>{money(48500)} across 6 customers.</p><span>{money(32000)} is high probability.</span></article><article><strong>Pending payments rising</strong><p>Your pending amount increased by 18% compared to last month.</p></article><article><strong>Cash flow prediction</strong><p>At the current pace you will close September with {money(74000)} collected.</p></article></div><div className="people-columns"><div><h3>High-risk customers</h3>{risky.map((item) => <div className="person-row" key={item.id}><strong>{item.name}</strong><span className="risk-text">{item.score}/100 · {money(item.outstanding)}</span></div>)}</div><div><h3>Likely to pay soon</h3>{likely.map((item) => <div className="person-row" key={item.id}><strong>{item.name}</strong><span className="likely-text">{item.score}% likely</span></div>)}</div></div></section>
+}

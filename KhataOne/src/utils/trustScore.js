@@ -1,0 +1,1 @@
+export const trustScore = (customer) => customer.score
