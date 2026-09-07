@@ -1,0 +1,20 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^Push-Location KhataOne; npm run build; Pop-Location$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^Push-Location KhataOne; npm run lint; Pop-Location$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^Set-Location KhataOne; npx eslint src/pages/Transactions\\.jsx$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npx eslint src/pages/Transactions\\.jsx; npm run build$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
