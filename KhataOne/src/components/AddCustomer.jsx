@@ -5,7 +5,7 @@ import { useApp } from "../context/AppContext.jsx";
 
 export default function AddCustomer() {
   const navigate = useNavigate();
-  const { addCustomer } = useApp();
+  const { saveCustomer, notify } = useApp();
 
   const [form, setForm] = useState({
     name: "",
@@ -25,14 +25,15 @@ export default function AddCustomer() {
     e.preventDefault();
 
     if (!form.name.trim() || !form.phone.trim()) {
-      alert("Customer name and mobile number are required.");
+      notify("Customer name and mobile number are required.");
       return;
     }
 
     setLoading(true);
 
     try {
-      addCustomer({
+      saveCustomer({
+        id: crypto.randomUUID(),
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim(),
@@ -44,7 +45,7 @@ export default function AddCustomer() {
       navigate("/customers");
     } catch (error) {
       console.error(error);
-      alert("Failed to add customer.");
+      notify("Failed to add customer.");
     } finally {
       setLoading(false);
     }

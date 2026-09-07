@@ -5,7 +5,7 @@ import { useApp } from "../context/AppContext.jsx";
 
 export default function CustomerForm() {
   const navigate = useNavigate();
-  const { saveCustomer } = useApp();
+  const { saveCustomer, notify } = useApp();
 
   const [form, setForm] = useState({
     name: "",
@@ -26,12 +26,12 @@ export default function CustomerForm() {
     e.preventDefault();
 
     if (!form.name.trim()) {
-      alert("Please enter customer name");
+      notify("Please enter customer name");
       return;
     }
 
     if (!form.phone.trim()) {
-      alert("Please enter mobile number");
+      notify("Please enter mobile number");
       return;
     }
 
