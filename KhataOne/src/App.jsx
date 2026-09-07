@@ -20,21 +20,51 @@ import Settings from "./pages/Settings.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 
+function ProtectedRoute({ children }) {
+  const isLoggedIn = localStorage.getItem("khataone_logged_in") === "true";
+  return isLoggedIn ? children : <Navigate to="/login" replace />;
+}
+
+function PublicRoute({ children }) {
+  const isLoggedIn = localStorage.getItem("khataone_logged_in") === "true";
+  return isLoggedIn ? <Navigate to="/overview" replace /> : children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AppProvider>
           <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            {/* Public */}
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
 
-            {/* App Routes */}
-            <Route element={<Layout />}>
+            <Route
+              path="/signup"
+              element={
+                <PublicRoute>
+                  <Signup />
+                </PublicRoute>
+              }
+            />
+
+            {/* Protected App */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
               <Route path="/overview" element={<Overview />} />
 
-              {/* Customers */}
               <Route path="/customers" element={<Customers />} />
               <Route path="/customers/new" element={<CustomerForm />} />
               <Route path="/customers/:id" element={<CustomerDetails />} />
@@ -42,10 +72,7 @@ export default function App() {
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/collections" element={<Collections />} />
               <Route path="/ai-insights" element={<AIInsights />} />
-              <Route
-                path="/payment-calendar"
-                element={<PaymentCalendar />}
-              />
+              <Route path="/payment-calendar" element={<PaymentCalendar />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/automation" element={<Automation />} />
               <Route path="/team" element={<Team />} />
@@ -54,8 +81,8 @@ export default function App() {
             </Route>
 
             {/* Default */}
-            <Route path="/" element={<Navigate to="/overview" replace />} />
-            <Route path="*" element={<Navigate to="/overview" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </AppProvider>
       </ThemeProvider>
