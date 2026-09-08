@@ -2,12 +2,12 @@ const day = (offset) =>
   new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
 
 export const initialData = {
-  profile: { name: "Samir Kulkarni", email: "samir@example.com" },
+  profile: { name: "Samir Machrekar", email: "samir@example.com" },
   business: {
     name: "Samir's Store",
     type: "Retail",
     currency: "₹",
-    phone: "+91 98765 43210",
+    phone: "+91 7796094625",
     email: "samir@example.com",
     address: "",
   },
@@ -88,7 +88,7 @@ export const initialData = {
   team: [
     {
       id: "owner",
-      name: "Samir Kulkarni",
+      name: "Samir Machrekar",
       email: "samir@example.com",
       role: "Owner",
       status: "Active",
