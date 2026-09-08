@@ -19,8 +19,10 @@ import {
 } from "../services/customerService.js";
 
 import {
-  removeTransaction,
-  saveTransaction,
+  addTransaction,
+  updateTransaction,
+  deleteTransaction as deleteTransactionFromFirestore,
+  subscribeToTransactions,
 } from "../services/transactionService.js";
 
 import { auth } from "../config/firebase.js";
@@ -33,8 +35,11 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
 
-  // Listen for logged-in Firebase user
+  // =========================
+  // AUTH USER
+  // =========================
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -43,9 +48,15 @@ export function AppProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  // Real-time Firestore customer sync
+  // =========================
+  // FIRESTORE CUSTOMERS
+  // =========================
   useEffect(() => {
     if (!user?.uid) {
+      setData((current) => ({
+        ...current,
+        customers: [],
+      }));
       setLoadingCustomers(false);
       return;
     }
@@ -67,12 +78,47 @@ export function AppProvider({ children }) {
     return unsubscribe;
   }, [user?.uid]);
 
-  // Save other workspace data locally
+  // =========================
+  // FIRESTORE TRANSACTIONS
+  // =========================
+  useEffect(() => {
+    if (!user?.uid) {
+      setData((current) => ({
+        ...current,
+        transactions: [],
+      }));
+      setLoadingTransactions(false);
+      return;
+    }
+
+    setLoadingTransactions(true);
+
+    const unsubscribe = subscribeToTransactions(
+      user.uid,
+      (firebaseTransactions) => {
+        setData((current) => ({
+          ...current,
+          transactions: firebaseTransactions,
+        }));
+
+        setLoadingTransactions(false);
+      },
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  // =========================
+  // LOCAL STORAGE
+  // Other UI data backup
+  // =========================
   useEffect(() => {
     saveWorkspace(data);
   }, [data]);
 
-  // Customers with calculated stats
+  // =========================
+  // CUSTOMERS WITH STATS
+  // =========================
   const customers = useMemo(
     () =>
       data.customers.map((item) =>
@@ -81,20 +127,26 @@ export function AppProvider({ children }) {
     [data.customers, data.transactions],
   );
 
-  // Dashboard totals
+  // =========================
+  // DASHBOARD TOTALS
+  // =========================
   const totals = useMemo(
     () => metrics(data.transactions, range),
     [data.transactions, range],
   );
 
-  // General update helper
+  // =========================
+  // GENERAL UPDATE
+  // =========================
   const update = (changes) =>
     setData((current) => ({
       ...current,
       ...changes,
     }));
 
-  // Toast notification
+  // =========================
+  // TOAST
+  // =========================
   const notify = (message) => {
     setToast(message);
 
@@ -103,7 +155,9 @@ export function AppProvider({ children }) {
     }, 2400);
   };
 
-  // Activity logger
+  // =========================
+  // ACTIVITY
+  // =========================
   const activity = (title, detail = "") => {
     setData((current) => ({
       ...current,
@@ -120,9 +174,8 @@ export function AppProvider({ children }) {
   };
 
   // =========================
-  // CUSTOMER - FIRESTORE
+  // SAVE CUSTOMER
   // =========================
-
   const saveCustomer = async (value) => {
     if (!user?.uid) {
       notify("Please login first");
@@ -151,41 +204,49 @@ export function AppProvider({ children }) {
   };
 
   // =========================
-  // TRANSACTIONS
-  // Currently Local Storage
+  // SAVE TRANSACTION
   // =========================
+  const saveTxn = async (value) => {
+    if (!user?.uid) {
+      notify("Please login first");
+      return;
+    }
 
-  const saveTxn = (value) => {
-    const exists = data.transactions.some(
-      (item) => item.id === value.id,
-    );
+    try {
+      const exists = Boolean(value.id);
 
-    update({
-      transactions: saveTransaction(
-        data.transactions,
-        value,
-      ),
-    });
+      if (exists) {
+        await updateTransaction(user.uid, value);
+      } else {
+        await addTransaction(user.uid, value);
+      }
 
-    activity(
-      value.type === "payment"
-        ? "Payment received"
-        : exists
-          ? "Transaction edited"
-          : "Transaction created",
-      money(
-        value.amount,
-        data.business.currency,
-      ),
-    );
+      activity(
+        value.type === "payment"
+          ? "Payment received"
+          : exists
+            ? "Transaction updated"
+            : "Transaction created",
+        money(
+          Number(value.amount || 0),
+          data.business?.currency || "INR",
+        ),
+      );
 
-    notify("Transaction saved");
+      notify(
+        exists
+          ? "Transaction updated"
+          : "Transaction saved",
+      );
+    } catch (error) {
+      console.error("Transaction save error:", error);
+      notify("Failed to save transaction");
+    }
   };
 
   // =========================
   // DELETE CUSTOMER
   // =========================
-
   const deleteCustomer = async (id) => {
     if (!user?.uid) {
       notify("Please login first");
@@ -201,15 +262,6 @@ export function AppProvider({ children }) {
         user.uid,
         id,
       );
-
-      // Remove related local transactions
-      setData((current) => ({
-        ...current,
-        transactions: current.transactions.filter(
-          (transaction) =>
-            transaction.customerId !== id,
-        ),
-      }));
 
       activity(
         "Customer deleted",
@@ -230,22 +282,34 @@ export function AppProvider({ children }) {
   // =========================
   // DELETE TRANSACTION
   // =========================
+  const deleteTxn = async (id) => {
+    if (!user?.uid) {
+      notify("Please login first");
+      return;
+    }
 
-  const deleteTxn = (id) => {
-    update({
-      transactions: removeTransaction(
-        data.transactions,
+    try {
+      await deleteTransactionFromFirestore(
+        user.uid,
         id,
-      ),
-    });
+      );
 
-    notify("Transaction deleted");
+      activity("Transaction deleted");
+
+      notify("Transaction deleted");
+    } catch (error) {
+      console.error(
+        "Transaction delete error:",
+        error,
+      );
+
+      notify("Failed to delete transaction");
+    }
   };
 
   // =========================
   // REMINDER
   // =========================
-
   const reminder = (customer) => {
     setData((current) => ({
       ...current,
@@ -292,6 +356,7 @@ export function AppProvider({ children }) {
         toast,
         user,
         loadingCustomers,
+        loadingTransactions,
         update,
         notify,
         activity,

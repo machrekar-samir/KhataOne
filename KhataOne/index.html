@@ -2,23 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/app-iconn.png" sizes="32x32"" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/app-icon.png"
+      sizes="32x32"
+    />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
     <title>KhataOne</title>
-    <script>
-      const savedTheme = localStorage.getItem("khataone-theme");
-      let workspaceTheme;
-      try {
-        workspaceTheme = JSON.parse(
-          localStorage.getItem("khataone-workspace-v1") || "{}",
-        ).settings?.theme;
-      } catch {}
-      if (savedTheme === "dark" || (!savedTheme && workspaceTheme === "dark"))
-        document.documentElement.classList.add("dark");
-    </script>
   </head>
+
   <body>
     <div id="root"></div>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

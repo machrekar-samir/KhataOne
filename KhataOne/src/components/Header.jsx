@@ -2,15 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { useApp } from "../context/AppContext.jsx";
-import {
-  Bell,
-  Moon,
-  Search,
-  Sun,
-  Menu,
-  X,
-  UserRound,
-} from "lucide-react";
+import { Bell, Moon, Search, Sun, Menu, X, UserRound } from "lucide-react";
 
 export default function Header({ onMenu }) {
   const navigate = useNavigate();
@@ -42,8 +34,7 @@ export default function Header({ onMenu }) {
 
     document.addEventListener("mousedown", handleClickOutside);
 
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleKeyDown = (e) => {
@@ -59,7 +50,6 @@ export default function Header({ onMenu }) {
 
   return (
     <header className="relative z-40 flex h-[60px] items-center gap-2 border-b border-[#ebe7e3] bg-white/90 px-3 backdrop-blur transition-colors duration-300 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10 dark:border-[#423238] dark:bg-[#281f23]/90">
-
       {/* Mobile Menu */}
       <button
         onClick={onMenu}
@@ -70,10 +60,7 @@ export default function Header({ onMenu }) {
       </button>
 
       {/* Search */}
-      <div
-        ref={searchRef}
-        className="relative min-w-0 flex-1 lg:max-w-[440px]"
-      >
+      <div ref={searchRef} className="relative min-w-0 flex-1 lg:max-w-[440px]">
         <div
           className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-white px-3 transition-all dark:bg-[#2d2428] ${
             open
@@ -118,7 +105,6 @@ export default function Header({ onMenu }) {
         {/* Search Dropdown */}
         {open && (
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-xl border border-[#ebe7e3] bg-white shadow-xl dark:border-[#423238] dark:bg-[#2d2428]">
-
             {results.length > 0 ? (
               <>
                 <div className="border-b border-[#f0ece8] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[#a69c9c] dark:border-[#423238]">
@@ -172,7 +158,6 @@ export default function Header({ onMenu }) {
 
       {/* Right Actions */}
       <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-
         {/* Theme */}
         <button
           className="relative grid size-7 place-items-center text-[#8b8383] transition hover:text-[#8f2039] dark:text-[#bbaeb1]"
@@ -195,7 +180,6 @@ export default function Header({ onMenu }) {
           </span>
         </button>
 
-        {/* Profile */}
         <button
           onClick={() => navigate("/settings")}
           className="grid size-8 shrink-0 place-items-center rounded-full bg-[#7b2335] text-[10px] font-bold text-white sm:size-9"
