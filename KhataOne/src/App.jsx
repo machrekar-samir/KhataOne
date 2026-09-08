@@ -29,7 +29,10 @@ function ProtectedRoute({ children }) {
       <div className="flex min-h-screen items-center justify-center bg-[#f8f6f3]">
         <div className="text-center">
           <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-[#7b1825] border-t-transparent" />
-          <p className="text-sm text-[#667085]">Loading KhataOne...</p>
+
+          <p className="text-sm text-[#667085]">
+            Loading KhataOne...
+          </p>
         </div>
       </div>
     );
@@ -41,11 +44,11 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
-  return user ? <Navigate to="/overview" replace /> : children;
+  return user
+    ? <Navigate to="/overview" replace />
+    : children;
 }
 
 export default function App() {
@@ -53,7 +56,7 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <Routes>
-          {/* Public Routes */}
+          {/* Public */}
           <Route
             path="/login"
             element={
@@ -72,7 +75,7 @@ export default function App() {
             }
           />
 
-          {/* Protected App Routes */}
+          {/* Protected App */}
           <Route
             element={
               <ProtectedRoute>
@@ -97,9 +100,15 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Route>
 
-          {/* Default */}
-          <Route path="/" element={<Navigate to="/overview" replace />} />
-          <Route path="*" element={<Navigate to="/overview" replace />} />
+          <Route
+            path="/"
+            element={<Navigate to="/overview" replace />}
+          />
+
+          <Route
+            path="*"
+            element={<Navigate to="/overview" replace />}
+          />
         </Routes>
       </AppProvider>
     </ThemeProvider>

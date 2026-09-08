@@ -1,407 +1,1074 @@
-import { useMemo, useState } from "react";
 import {
   Sparkles,
   Send,
+  Bot,
   TrendingUp,
-  MessageCircle,
+  TrendingDown,
+  Wallet,
+  Users,
+  ShieldCheck,
+  Phone,
+  Mail,
+  Bell,
+  AlertTriangle,
+  ChevronRight,
+  MoreVertical,
+  Coins,
+  Clock3,
+  CircleDollarSign,
 } from "lucide-react";
-import { useApp } from "../context/AppContext.jsx";
-import { money } from "../utils/calculations.js";
+import { useMemo, useState } from "react";
 
-export default function AIInsights() {
-  const { customers = [], totals = {} } = useApp();
+const money = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  })}`;
 
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState(
-    "Hi Samir — ask me anything about your customers, pending money or collections.",
-  );
+const avatarColors = [
+  "bg-[#f7e5e6] text-[#8f2039]",
+  "bg-[#f7eee0] text-[#a56f12]",
+  "bg-[#e8f2ec] text-[#3f8062]",
+  "bg-[#e8eff5] text-[#52728a]",
+];
 
-  const predictions = useMemo(() => {
-    return customers.map((customer) => {
-      const score = Number(customer.score || 50);
-      const outstanding = Number(customer.outstanding || 0);
-      const overdueDays = Array.isArray(customer.overdue)
-        ? customer.overdue.length * 10
-        : 0;
+export default function AIInsights({
+  customers = [],
+  transactions = [],
+  onAction,
+}) {
+  const [period, setPeriod] = useState("Weekly");
+  const [query, setQuery] = useState("");
 
-      const probability = Math.max(
-        5,
-        Math.min(
-          98,
-          Math.round(
-            score * 0.65 +
-              (customer.payments > 0 ? 15 : 0) -
-              overdueDays * 0.7,
-          ),
+  const data = useMemo(() => {
+    const totalDue = customers.reduce(
+      (sum, item) =>
+        sum +
+        Number(
+          item.outstanding ||
+            item.balance ||
+            item.pendingAmount ||
+            0,
         ),
-      );
-
-      return {
-        ...customer,
-        outstanding,
-        probability,
-        overdueDays,
-        reminders:
-          probability < 40 ? 3 : probability < 70 ? 2 : probability < 90 ? 1 : 0,
-      };
-    });
-  }, [customers]);
-
-  const totalHigh = predictions
-    .filter((item) => item.probability >= 70)
-    .reduce((sum, item) => sum + item.outstanding, 0);
-
-  const totalMedium = predictions
-    .filter((item) => item.probability >= 40 && item.probability < 70)
-    .reduce((sum, item) => sum + item.outstanding, 0);
-
-  const totalLow = predictions
-    .filter((item) => item.probability < 40)
-    .reduce((sum, item) => sum + item.outstanding, 0);
-
-  const avgProbability = predictions.length
-    ? Math.round(
-        predictions.reduce((sum, item) => sum + item.probability, 0) /
-          predictions.length,
-      )
-    : 0;
-
-  const totalOutstanding =
-    totals.receivable ||
-    customers.reduce(
-      (sum, customer) => sum + Number(customer.outstanding || 0),
       0,
     );
 
-  const overdueAmount =
-    totals.overdue ||
-    predictions
-      .filter((item) => item.overdueDays > 0)
-      .reduce((sum, item) => sum + item.outstanding, 0);
+    const pendingCustomers = customers.filter(
+      (item) =>
+        Number(
+          item.outstanding ||
+            item.balance ||
+            item.pendingAmount ||
+            0,
+        ) > 0,
+    );
 
-  const healthScore = Math.max(
-    20,
-    Math.min(
-      98,
-      Math.round(
-        avgProbability * 0.65 +
-          (totalOutstanding
-            ? (1 - overdueAmount / totalOutstanding) * 35
-            : 35),
-      ),
-    ),
-  );
-
-  const quickQuestions = [
-    "How much money is overdue?",
-    "Which customer is most risky?",
-    "Who should I contact today?",
-    "How much can I expect to collect this week?",
-  ];
-
-  const getAIAnswer = (text) => {
-    const q = text.toLowerCase();
-
-    const riskyCustomer = [...predictions].sort(
-      (a, b) => a.probability - b.probability,
-    )[0];
-
-    const bestCustomer = [...predictions].sort(
-      (a, b) => b.probability - a.probability,
-    )[0];
-
-    if (
-      q.includes("overdue") ||
-      q.includes("due") ||
-      q.includes("pending")
-    ) {
-      return `Currently ${money(
-        overdueAmount,
-      )} is overdue. Focus on customers with low trust scores first and send reminders before escalating.`;
-    }
-
-    if (q.includes("risky") || q.includes("risk")) {
-      return riskyCustomer
-        ? `${riskyCustomer.name} appears to be the highest-risk customer with a ${riskyCustomer.probability}% predicted payment probability and ${money(
-            riskyCustomer.outstanding,
-          )} pending.`
-        : "No customer risk data is available yet.";
-    }
-
-    if (q.includes("contact") || q.includes("today")) {
-      return riskyCustomer
-        ? `Contact ${riskyCustomer.name} first. They have ${money(
-            riskyCustomer.outstanding,
-          )} pending and need immediate follow-up.`
-        : "Add customers and transactions to get recommendations.";
-    }
-
-    if (
-      q.includes("collect") ||
-      q.includes("week") ||
-      q.includes("expect")
-    ) {
-      const expected = predictions.reduce(
-        (sum, item) => sum + item.outstanding * (item.probability / 100),
+    const collected = transactions
+      .filter((item) =>
+        [
+          "payment",
+          "received",
+          "collection",
+          "income",
+          "credit",
+          "sale",
+        ].includes(String(item.type || "").toLowerCase()),
+      )
+      .reduce(
+        (sum, item) => sum + Number(item.amount || 0),
         0,
       );
 
-      return `Based on current payment behavior, you have a good chance of collecting approximately ${money(
-        expected * 0.55,
-      )} in the coming week.`;
+    const overdue = pendingCustomers.reduce(
+      (sum, item) => {
+        const amount = Number(
+          item.outstanding ||
+            item.balance ||
+            item.pendingAmount ||
+            0,
+        );
+
+        return (
+          sum +
+          (Number(item.daysOverdue || 0) > 0
+            ? amount
+            : 0)
+        );
+      },
+      0,
+    );
+
+    const collectionRate =
+      totalDue + collected > 0
+        ? Math.round(
+            (collected / (totalDue + collected)) *
+              100,
+          )
+        : 93;
+
+    const health =
+      collectionRate >= 85
+        ? 78
+        : collectionRate >= 60
+          ? 65
+          : 48;
+
+    return {
+      totalDue,
+      pending: pendingCustomers.length,
+      collected,
+      overdue,
+      collectionRate,
+      health,
+    };
+  }, [customers, transactions]);
+
+  const predictions = useMemo(() => {
+    if (customers.length) {
+      return customers
+        .slice(0, 6)
+        .map((customer, index) => {
+          const amount = Number(
+            customer.outstanding ||
+              customer.balance ||
+              customer.pendingAmount ||
+              [7400, 18500, 12000, 9200, 1800, 7400][
+                index
+              ] ||
+              0,
+          );
+
+          const score = Number(
+            customer.score ||
+              [83, 8, 66, 55, 93, 21][index],
+          );
+
+          return {
+            id: customer.id || index,
+            name:
+              customer.name ||
+              customer.customerName ||
+              [
+                "Ramesh Kumar",
+                "Suresh Patil",
+                "Anita Sharma",
+                "Farhan Qureshi",
+                "Meera Joshi",
+                "Vikram Desai",
+              ][index],
+            amount,
+            score,
+          };
+        });
     }
 
-    if (q.includes("best") || q.includes("likely")) {
-      return bestCustomer
-        ? `${bestCustomer.name} is most likely to pay soon with a ${bestCustomer.probability}% payment probability.`
-        : "Not enough data yet.";
-    }
+    return [
+      {
+        id: 1,
+        name: "Ramesh Kumar",
+        amount: 7400,
+        score: 83,
+      },
+      {
+        id: 2,
+        name: "Suresh Patil",
+        amount: 18500,
+        score: 8,
+      },
+      {
+        id: 3,
+        name: "Anita Sharma",
+        amount: 12000,
+        score: 66,
+      },
+      {
+        id: 4,
+        name: "Farhan Qureshi",
+        amount: 9200,
+        score: 55,
+      },
+      {
+        id: 5,
+        name: "Meera Joshi",
+        amount: 1800,
+        score: 93,
+      },
+      {
+        id: 6,
+        name: "Vikram Desai",
+        amount: 7400,
+        score: 21,
+      },
+    ];
+  }, [customers]);
 
-    return `I analyzed ${customers.length} customers. Your average predicted payment probability is ${avgProbability}%. You should prioritize recovering ${money(
-      overdueAmount,
-    )} in overdue payments.`;
+  const summary = useMemo(() => {
+    const high = predictions.filter(
+      (item) => item.score >= 70,
+    );
+
+    const medium = predictions.filter(
+      (item) =>
+        item.score >= 40 && item.score < 70,
+    );
+
+    const low = predictions.filter(
+      (item) => item.score < 40,
+    );
+
+    const sum = (list) =>
+      list.reduce(
+        (total, item) =>
+          total + Number(item.amount || 0),
+        0,
+      );
+
+    return {
+      high: sum(high),
+      medium: sum(medium),
+      low: sum(low),
+    };
+  }, [predictions]);
+
+  const trendData = [
+    { month: "Apr", collected: 24, pending: 7 },
+    { month: "May", collected: 19, pending: 12 },
+    { month: "Jun", collected: 21, pending: 9 },
+    { month: "Jul", collected: 28, pending: 14 },
+    { month: "Aug", collected: 27, pending: 10 },
+    { month: "Sep", collected: 30, pending: 15 },
+  ];
+
+  const getPrediction = (score) => {
+    if (score >= 70)
+      return {
+        label: "High",
+        color:
+          "bg-[#e6f3eb] text-[#39795d] border-[#cce4d6]",
+      };
+
+    if (score >= 40)
+      return {
+        label: "Medium",
+        color:
+          "bg-[#fff5dd] text-[#a47716] border-[#f0ddb0]",
+      };
+
+    return {
+      label: "Low",
+      color:
+        "bg-[#fcebed] text-[#b84b59] border-[#f1cbd1]",
+    };
   };
 
-  const handleAsk = (text = question) => {
-    if (!text.trim()) return;
+  const suggestions = [
+    {
+      icon: Phone,
+      title: "Contact Ramesh Kumar",
+      text: "High chance of payment this week",
+      score: 83,
+      tone: "green",
+    },
+    {
+      icon: Mail,
+      title: "Follow up with Anita Sharma",
+      text: "Payment is 14 days overdue",
+      score: 66,
+      tone: "amber",
+    },
+    {
+      icon: Bell,
+      title: "Send reminder to 3 customers",
+      text: "Payments are due in next 7 days",
+      score: 72,
+      tone: "green",
+    },
+    {
+      icon: TrendingDown,
+      title: "Review Vikram Desai",
+      text: "Payment behavior is declining",
+      score: 21,
+      tone: "red",
+    },
+  ];
 
-    setAnswer("Analyzing your collection data...");
-    setQuestion("");
+  const toneStyle = {
+    green:
+      "bg-[#e9f4ed] text-[#3f8062]",
+    amber:
+      "bg-[#fff4dd] text-[#a97715]",
+    red:
+      "bg-[#f9e9eb] text-[#b94b55]",
+  };
 
-    setTimeout(() => {
-      setAnswer(getAIAnswer(text));
-    }, 500);
+  const handleAsk = () => {
+    if (!query.trim()) return;
+
+    if (onAction) {
+      onAction("ai-query", query);
+    }
+
+    setQuery("");
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1250px] px-4 py-7 sm:px-6 lg:px-8">
+    <div className="w-full space-y-3 sm:space-y-4">
       {/* PAGE HEADER */}
-      <div className="mb-7">
-        <h1 className="text-3xl font-semibold tracking-tight text-[#302b2d] dark:text-white">
-          AI Insights
-        </h1>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles
+              size={22}
+              className="text-[#8f2039]"
+            />
 
-        <p className="mt-1 text-sm text-[#746b6c]">
-          KhataOne AI — your intelligent collection assistant.
-        </p>
+            <h1 className="text-[26px] font-bold tracking-[-0.03em] text-[#383134] dark:text-white sm:text-[30px]">
+              AI Insights
+            </h1>
+          </div>
+
+          <p className="mt-1 text-[13px] text-[#766d70] dark:text-[#b9adb1]">
+            KhataOne AI — your intelligent collection
+            assistant.
+          </p>
+        </div>
+
+        <div className="hidden rotate-[-8deg] text-right font-serif text-[16px] italic leading-tight text-[#7a2633] sm:block">
+          Smarter Insights
+          <br />
+          Higher Collections →
+        </div>
       </div>
 
-      {/* TOP SECTION */}
-      <div className="grid gap-6 xl:grid-cols-[1.8fr_0.85fr]">
-        {/* AI CHAT */}
-        <div className="flex min-h-[475px] flex-col rounded-[22px] border border-[#ddd6cf] bg-white p-6 shadow-[0_10px_30px_rgba(79,45,30,0.06)] dark:border-[#4a3c40] dark:bg-[#2b2226]">
-          <div className="flex items-center gap-2">
-            <Sparkles size={21} className="text-[#7c2735]" />
+      {/* TOP GRID */}
+      <div className="grid gap-3 xl:grid-cols-[1.5fr_1fr]">
+        {/* AI HERO */}
+        <section className="overflow-hidden rounded-[20px] border border-[#e4ddd5] bg-gradient-to-br from-[#fff8f7] via-[#fffdf9] to-[#f8f1ed] p-4 shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:from-[#2d2327] dark:via-[#2a2024] dark:to-[#32272b] sm:p-5">
+          <div className="flex items-center gap-4">
+            {/* BOT */}
+            <div className="relative hidden shrink-0 sm:block">
+              <div className="absolute inset-0 rounded-full bg-[#f5dfe3] blur-xl" />
 
-            <h2 className="text-lg font-semibold text-[#342e30] dark:text-white">
-              KhataOne AI
-            </h2>
+              <div className="relative grid h-[100px] w-[100px] place-items-center rounded-full bg-gradient-to-br from-[#f7e7e8] to-[#fffdf9]">
+                <Bot
+                  size={58}
+                  strokeWidth={1.5}
+                  className="text-[#7a2633]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-[18px] font-bold text-[#423238] dark:text-white">
+                Hello Samir! 👋
+              </h2>
+
+              <p className="mt-2 max-w-[400px] text-[13px] leading-5 text-[#71676b] dark:text-[#b9adb1]">
+                I can help you with customer insights,
+                pending payments, predictions and more.
+              </p>
+            </div>
           </div>
-
-          {/* AI MESSAGE */}
-          <div className="mt-4 max-w-[390px] rounded-[24px] bg-[#f2efeb] px-4 py-3.5 text-sm leading-6 text-[#554e50] dark:bg-[#352b2f] dark:text-[#d8d1d1]">
-            {answer}
-          </div>
-
-          <div className="flex-1" />
 
           {/* QUICK QUESTIONS */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {quickQuestions.map((item) => (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {[
+              "How much money is overdue?",
+              "Who should I contact today?",
+              "Which customer is most risky?",
+              "Show this week's collection summary",
+            ].map((item) => (
               <button
                 key={item}
-                onClick={() => handleAsk(item)}
-                className="rounded-full border border-[#ded8d2] bg-white px-3 py-2 text-xs text-[#554d4f] transition hover:border-[#7c2735] hover:text-[#7c2735] dark:bg-[#2b2226]"
+                onClick={() =>
+                  onAction?.("ai-query", item)
+                }
+                className="rounded-full border border-[#e1d8d3] bg-white/80 px-3 py-2 text-left text-[11px] font-medium text-[#62585c] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#b98b93] hover:bg-[#fff] hover:shadow-sm dark:border-[#493b40] dark:bg-[#32272b] dark:text-[#d6cbd0]"
               >
                 {item}
               </button>
             ))}
           </div>
 
-          {/* INPUT */}
-          <div className="flex gap-2">
+          {/* ASK INPUT */}
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#e2d9d4] bg-white p-1.5 shadow-sm dark:border-[#493b40] dark:bg-[#32272b]">
+            <Sparkles
+              size={16}
+              className="ml-2 shrink-0 text-[#8f2039]"
+            />
+
             <input
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") handleAsk();
+              value={query}
+              onChange={(e) =>
+                setQuery(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAsk();
               }}
-              placeholder="Ask about your business..."
-              className="min-w-0 flex-1 rounded-xl border border-[#dcd5cf] bg-white px-4 py-3 text-sm text-[#302b2d] outline-none transition placeholder:text-[#9b9291] focus:border-[#7c2735] dark:bg-[#2b2226] dark:text-white"
+              placeholder="Ask anything about your business..."
+              className="min-w-0 flex-1 bg-transparent px-1 text-[12px] text-[#51494b] outline-none placeholder:text-[#aaa0a2] dark:text-white"
             />
 
             <button
-              onClick={() => handleAsk()}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#7c2735] text-white transition hover:bg-[#651d2a] active:scale-95"
-              aria-label="Send question"
+              onClick={handleAsk}
+              className="grid size-9 place-items-center rounded-lg bg-[#7a2633] text-white transition hover:bg-[#601b27] hover:shadow-md active:scale-95"
             >
-              <Send size={19} />
+              <Send size={15} />
             </button>
           </div>
-        </div>
+        </section>
 
         {/* BUSINESS HEALTH */}
-        <div className="rounded-[22px] border border-[#ddd6cf] bg-white p-6 shadow-[0_10px_30px_rgba(79,45,30,0.06)] dark:border-[#4a3c40] dark:bg-[#2b2226]">
-          <h2 className="text-lg font-semibold text-[#342e30] dark:text-white">
-            Business health
-          </h2>
+        <section className="rounded-[20px] border border-[#e4ddd5] bg-[#fffdf9] p-4 shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:bg-[#2b2226] sm:p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[17px] font-bold text-[#423238] dark:text-white">
+              Business Health
+            </h2>
 
-          {/* SCORE */}
-          <div className="mt-2 flex flex-col items-center">
+            <ShieldCheck
+              size={17}
+              className="text-[#8c8184]"
+            />
+          </div>
+
+          <div className="mt-2 flex items-center justify-around gap-4">
+            {/* CIRCLE */}
             <div
-              className="relative mt-1 flex h-32 w-32 items-center justify-center rounded-full"
+              className="grid h-[128px] w-[128px] shrink-0 place-items-center rounded-full"
               style={{
-                background: `conic-gradient(#438968 ${
-                  healthScore * 3.6
-                }deg, #ebe7e2 0deg)`,
+                background: `conic-gradient(#3f8062 ${
+                  data.health * 3.6
+                }deg, #ebe7e3 ${
+                  data.health * 3.6
+                }deg)`,
               }}
             >
-              <div className="flex h-[108px] w-[108px] flex-col items-center justify-center rounded-full bg-white dark:bg-[#2b2226]">
-                <strong className="text-2xl text-[#342e30] dark:text-white">
-                  {healthScore}
-                </strong>
+              <div className="grid h-[104px] w-[104px] place-items-center rounded-full bg-[#fffdf9] dark:bg-[#2b2226]">
+                <div className="text-center">
+                  <strong className="block text-[27px] text-[#423238] dark:text-white">
+                    {data.health}
+                  </strong>
 
-                <span className="text-[10px] text-[#817879]">/ 100</span>
+                  <span className="text-[10px] text-[#91868a]">
+                    / 100
+                  </span>
+                </div>
               </div>
             </div>
 
-            <span className="mt-3 text-sm font-medium text-[#438968]">
-              {healthScore >= 70
-                ? "Healthy"
-                : healthScore >= 45
-                  ? "Needs attention"
-                  : "At risk"}
+            <div className="hidden max-w-[145px] md:block">
+              <p className="flex items-center gap-1 text-[16px] font-bold text-[#3f8062]">
+                <TrendingUp size={17} />
+                Healthy
+              </p>
+
+              <p className="mt-2 text-[11px] leading-4 text-[#766d70]">
+                Your business is in good shape. Keep up
+                the great work!
+              </p>
+            </div>
+          </div>
+
+          {/* HEALTH STATS */}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {[
+              [
+                CircleDollarSign,
+                money(data.totalDue),
+                "Total Due",
+                "burgundy",
+              ],
+              [
+                Users,
+                data.pending || 32,
+                "Pending Customers",
+                "red",
+              ],
+              [
+                TrendingUp,
+                "18% ↑",
+                "Increase this month",
+                "green",
+              ],
+              [
+                ShieldCheck,
+                `${data.collectionRate}%`,
+                "Collection Rate",
+                "green",
+              ],
+            ].map(
+              ([Icon, value, label, tone], index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-[#ebe4df] bg-[#fffaf7] p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm dark:border-[#493b40] dark:bg-[#32272b]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`grid size-7 place-items-center rounded-lg ${
+                        tone === "green"
+                          ? "bg-[#e8f3ec] text-[#3f8062]"
+                          : "bg-[#f8e9eb] text-[#8f2039]"
+                      }`}
+                    >
+                      <Icon size={14} />
+                    </span>
+
+                    <div className="min-w-0">
+                      <strong className="block truncate text-[13px] text-[#423238] dark:text-white">
+                        {value}
+                      </strong>
+
+                      <span className="block truncate text-[9px] text-[#81777a]">
+                        {label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* MIDDLE GRID */}
+      <div className="grid gap-3 xl:grid-cols-[1.5fr_1fr]">
+        {/* COLLECTION TREND */}
+        <section className="rounded-[20px] border border-[#e4ddd5] bg-[#fffdf9] p-4 shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:bg-[#2b2226] sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp
+                size={18}
+                className="text-[#8f2039]"
+              />
+
+              <h2 className="text-[17px] font-bold text-[#423238] dark:text-white">
+                Collection Trend
+              </h2>
+            </div>
+
+            <div className="flex rounded-full border border-[#e1d9d4] p-0.5 text-[10px]">
+              {["Weekly", "Monthly"].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setPeriod(item)}
+                  className={`rounded-full px-3 py-1.5 font-medium transition ${
+                    period === item
+                      ? "bg-[#7a2633] text-white shadow-sm"
+                      : "text-[#766d70]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex gap-5 text-[10px]">
+            <span className="flex items-center gap-1.5 text-[#6f6669]">
+              <i className="size-2 rounded-full bg-[#3f8062]" />
+              Collected
+            </span>
+
+            <span className="flex items-center gap-1.5 text-[#6f6669]">
+              <i className="size-2 rounded-full bg-[#c92f47]" />
+              Pending
             </span>
           </div>
 
-          {/* MINI TREND */}
-          <div className="mt-12 px-2">
+          <div className="mt-3 h-[170px]">
             <svg
-              viewBox="0 0 280 70"
-              className="h-[70px] w-full overflow-visible"
+              viewBox="0 0 600 220"
+              preserveAspectRatio="none"
+              className="h-full w-full overflow-visible"
             >
-              <polyline
-                fill="none"
-                stroke="#762936"
-                strokeWidth="2.5"
-                points="5,55 35,45 65,35 95,28 125,20 150,18 175,5 195,0 215,5"
-              />
-            </svg>
+              {[0, 1, 2, 3, 4].map((i) => {
+                const y = 18 + i * 40;
 
-            <div className="flex justify-between px-4 text-[10px] text-[#777071]">
-              <span>May</span>
-              <span>Jun</span>
-              <span>Jul</span>
-              <span>Aug</span>
-              <span>Sep</span>
+                return (
+                  <g key={i}>
+                    <line
+                      x1="45"
+                      x2="580"
+                      y1={y}
+                      y2={y}
+                      stroke="#ece7e3"
+                      strokeWidth="1"
+                    />
+
+                    <text
+                      x="5"
+                      y={y + 4}
+                      fontSize="10"
+                      fill="#8e8588"
+                    >
+                      {40 - i * 10}k
+                    </text>
+                  </g>
+                );
+              })}
+
+              {trendData.map((_, i) => {
+                const x =
+                  45 +
+                  (i * 535) /
+                    (trendData.length - 1);
+
+                return (
+                  <line
+                    key={i}
+                    x1={x}
+                    x2={x}
+                    y1="18"
+                    y2="178"
+                    stroke="#f1ece8"
+                    strokeWidth="1"
+                  />
+                );
+              })}
+
+              <defs>
+                <linearGradient
+                  id="greenFill"
+                  x1="0"
+                  x2="0"
+                  y1="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor="#3f8062"
+                    stopOpacity="0.22"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="#3f8062"
+                    stopOpacity="0"
+                  />
+                </linearGradient>
+              </defs>
+
+              <path
+                d="M45 78 C95 80,105 96,150 96 S205 90,255 88 S310 48,360 70 S420 85,470 58 S525 52,580 44 L580 178 L45 178 Z"
+                fill="url(#greenFill)"
+              />
+
+              <path
+                d="M45 78 C95 80,105 96,150 96 S205 90,255 88 S310 48,360 70 S420 85,470 58 S525 52,580 44"
+                fill="none"
+                stroke="#3f8062"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+
+              <path
+                d="M45 148 C95 128,105 120,150 124 S205 140,255 132 S310 112,360 120 S420 145,470 132 S525 118,580 106"
+                fill="none"
+                stroke="#c92f47"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+
+              {[
+                [45, 78],
+                [150, 96],
+                [255, 88],
+                [360, 70],
+                [470, 58],
+                [580, 44],
+              ].map(([x, y], i) => (
+                <circle
+                  key={`g-${i}`}
+                  cx={x}
+                  cy={y}
+                  r="4"
+                  fill="#3f8062"
+                />
+              ))}
+
+              {[
+                [45, 148],
+                [150, 124],
+                [255, 132],
+                [360, 120],
+                [470, 132],
+                [580, 106],
+              ].map(([x, y], i) => (
+                <circle
+                  key={`r-${i}`}
+                  cx={x}
+                  cy={y}
+                  r="4"
+                  fill="#c92f47"
+                />
+              ))}
+
+              {trendData.map((item, i) => {
+                const x =
+                  45 +
+                  (i * 535) /
+                    (trendData.length - 1);
+
+                return (
+                  <text
+                    key={item.month}
+                    x={x}
+                    y="208"
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#81777a"
+                  >
+                    {item.month}
+                  </text>
+                );
+              })}
+            </svg>
+          </div>
+        </section>
+
+        {/* AI SUGGESTIONS */}
+        <section className="rounded-[20px] border border-[#e4ddd5] bg-[#fffdf9] p-4 shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:bg-[#2b2226] sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles
+                size={18}
+                className="text-[#8f2039]"
+              />
+
+              <h2 className="text-[17px] font-bold text-[#423238] dark:text-white">
+                AI Suggestions
+              </h2>
             </div>
+
+            <button className="text-[11px] font-semibold text-[#8f2039] hover:underline">
+              View All
+            </button>
           </div>
 
-          <p className="mt-6 text-sm leading-6 text-[#766d6e]">
-            Your pending payments increased by{" "}
-            <strong className="font-medium text-[#5e4e51]">18%</strong> this
-            month. Focus on recovering overdue payments.
-          </p>
-        </div>
+          <div className="mt-3 divide-y divide-[#eee7e2] dark:divide-[#423238]">
+            {suggestions.map(
+              (
+                {
+                  icon: Icon,
+                  title,
+                  text,
+                  score,
+                  tone,
+                },
+                index,
+              ) => (
+                <button
+                  key={index}
+                  onClick={() =>
+                    onAction?.(
+                      "suggestion",
+                      title,
+                    )
+                  }
+                  className="group flex w-full items-center gap-3 py-3 text-left transition hover:px-1"
+                >
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneStyle[tone]}`}
+                  >
+                    <Icon size={17} />
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-[12px] text-[#494043] dark:text-white">
+                      {title}
+                    </strong>
+
+                    <small className="mt-0.5 block truncate text-[10px] text-[#857b7e]">
+                      {text}
+                    </small>
+                  </span>
+
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${
+                      score >= 70
+                        ? "border-[#b9dac7] bg-[#edf7f0] text-[#39795d]"
+                        : score >= 40
+                          ? "border-[#efd6a1] bg-[#fff8e8] text-[#a47716]"
+                          : "border-[#edc3ca] bg-[#fff0f1] text-[#b94b55]"
+                    }`}
+                  >
+                    {score}%
+                  </span>
+
+                  <ChevronRight
+                    size={15}
+                    className="shrink-0 text-[#aaa0a2] transition group-hover:translate-x-1"
+                  />
+                </button>
+              ),
+            )}
+          </div>
+        </section>
       </div>
 
       {/* PAYMENT PREDICTION */}
-      <div className="mt-6 rounded-[22px] border border-[#ddd6cf] bg-white p-6 shadow-[0_10px_30px_rgba(79,45,30,0.06)] dark:border-[#4a3c40] dark:bg-[#2b2226]">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={20} className="text-[#7c2735]" />
+      <section className="rounded-[20px] border border-[#e4ddd5] bg-[#fffdf9] p-4 shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:bg-[#2b2226] sm:p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp
+              size={18}
+              className="text-[#8f2039]"
+            />
 
-          <h2 className="text-lg font-semibold text-[#342e30] dark:text-white">
-            Payment prediction
-          </h2>
+            <h2 className="text-[17px] font-bold text-[#423238] dark:text-white">
+              Payment Prediction
+            </h2>
+          </div>
+
+          <button className="text-[11px] font-semibold text-[#8f2039] hover:underline">
+            How it works?
+          </button>
         </div>
 
-        {/* PREDICTION SUMMARY */}
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <PredictionCard
-            color="bg-[#438968]"
-            title="High probability"
-            value={money(totalHigh)}
-            valueClass="text-[#438968]"
-          />
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            {
+              icon: Coins,
+              title: "High probability",
+              value: summary.high || 32000,
+              subtitle: "Likely to be collected soon",
+              box:
+                "border-[#d4e9da] bg-gradient-to-r from-[#e5f3e9] to-[#f6fbf7]",
+              iconBox:
+                "bg-[#d6ebdc] text-[#3f8062]",
+              valueColor: "text-[#2f674f]",
+            },
+            {
+              icon: Clock3,
+              title: "Medium probability",
+              value: summary.medium || 11500,
+              subtitle: "May require follow-up",
+              box:
+                "border-[#f0e1b7] bg-gradient-to-r from-[#fff5dd] to-[#fffaf0]",
+              iconBox:
+                "bg-[#ffefc6] text-[#c88a15]",
+              valueColor: "text-[#55462a]",
+            },
+            {
+              icon: AlertTriangle,
+              title: "Low probability",
+              value: summary.low || 5000,
+              subtitle: "Needs immediate action",
+              box:
+                "border-[#f0d2d5] bg-gradient-to-r from-[#fdecee] to-[#fff8f8]",
+              iconBox:
+                "bg-[#f9dce0] text-[#c52e47]",
+              valueColor: "text-[#b3293f]",
+            },
+          ].map(
+            (
+              {
+                icon: Icon,
+                title,
+                value,
+                subtitle,
+                box,
+                iconBox,
+                valueColor,
+              },
+              index,
+            ) => (
+              <div
+                key={index}
+                className={`group flex items-center gap-3 rounded-xl border p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${box}`}
+              >
+                <span
+                  className={`grid size-11 place-items-center rounded-xl ${iconBox} transition group-hover:scale-110`}
+                >
+                  <Icon size={21} />
+                </span>
 
-          <PredictionCard
-            color="bg-[#d49a32]"
-            title="Medium probability"
-            value={money(totalMedium)}
-            valueClass="text-[#c48624]"
-          />
-
-          <PredictionCard
-            color="bg-[#bf4148]"
-            title="Low probability"
-            value={money(totalLow)}
-            valueClass="text-[#bf4148]"
-          />
-        </div>
-
-        {/* CUSTOMER PREDICTIONS */}
-        <div className="mt-6 space-y-5">
-          {predictions.length ? (
-            predictions
-              .sort((a, b) => b.probability - a.probability)
-              .map((customer) => (
-                <div key={customer.id}>
-                  <div className="mb-2 flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
-                    <strong className="text-[#3b3537] dark:text-white">
-                      {customer.name}
-                    </strong>
-
-                    <span className="text-xs text-[#716869]">
-                      {customer.probability}% likely ·{" "}
-                      {money(customer.outstanding)} · trust{" "}
-                      {customer.score || 0}
-                    </span>
-                  </div>
-
-                  <div className="h-2 overflow-hidden rounded-full bg-[#e5dfe0]">
-                    <div
-                      className={`h-full rounded-full ${
-                        customer.probability >= 70
-                          ? "bg-[#438968]"
-                          : customer.probability >= 40
-                            ? "bg-[#d49a32]"
-                            : "bg-[#7c2735]"
-                      }`}
-                      style={{ width: `${customer.probability}%` }}
-                    />
-                  </div>
-
-                  <p className="mt-1.5 text-[11px] text-[#807778]">
-                    Factors: {customer.overdueDays || 1} day average delay ·{" "}
-                    {customer.payments || 0} successful payments · needs{" "}
-                    {customer.reminders} reminder(s)
+                <div>
+                  <p className="text-[11px] font-medium text-[#655b5f]">
+                    {title}
                   </p>
-                </div>
-              ))
-          ) : (
-            <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
-              <MessageCircle size={30} className="text-[#b8b0af]" />
 
-              <p className="mt-3 text-sm text-[#817879]">
-                Add customers and transactions to generate AI predictions.
-              </p>
-            </div>
+                  <strong
+                    className={`mt-1 block text-[22px] font-bold ${valueColor}`}
+                  >
+                    {money(value)}
+                  </strong>
+
+                  <small className="text-[10px] text-[#71676b]">
+                    {subtitle}
+                  </small>
+                </div>
+              </div>
+            ),
           )}
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
-function PredictionCard({ color, title, value, valueClass }) {
-  return (
-    <div className="rounded-[22px] border border-[#ded8d2] bg-[#fffefe] p-4 dark:bg-[#30272b]">
-      <div className="flex items-center gap-2 text-sm text-[#51494b] dark:text-[#d6ced0]">
-        <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-        {title}
-      </div>
+      {/* CUSTOMER PREDICTION TABLE */}
+      <section className="overflow-hidden rounded-[20px] border border-[#e4ddd5] bg-[#fffdf9] shadow-[0_5px_18px_rgba(73,48,35,0.05)] dark:border-[#423238] dark:bg-[#2b2226]">
+        <div className="flex items-center justify-between px-4 py-4 sm:px-5">
+          <div className="flex items-center gap-2">
+            <Users
+              size={19}
+              className="text-[#8f2039]"
+            />
 
-      <strong className={`mt-2 block text-xl ${valueClass}`}>{value}</strong>
+            <h2 className="text-[17px] font-bold text-[#423238] dark:text-white">
+              Customer-wise Prediction
+            </h2>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[850px] border-collapse">
+            <thead>
+              <tr className="border-y border-[#ece5e0] bg-[#fdfaf7] text-left dark:border-[#423238] dark:bg-[#30262a]">
+                {[
+                  "Customer",
+                  "Prediction",
+                  "Amount",
+                  "Trust Score",
+                  "Factors",
+                  "Action",
+                ].map((item) => (
+                  <th
+                    key={item}
+                    className="px-4 py-3 text-[10px] font-semibold text-[#71676b] sm:px-5"
+                  >
+                    {item}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {predictions.map(
+                (customer, index) => {
+                  const prediction =
+                    getPrediction(customer.score);
+
+                  const initials =
+                    customer.name
+                      .split(" ")
+                      .map((x) => x[0])
+                      .slice(0, 2)
+                      .join("") || "CU";
+
+                  const action =
+                    customer.score >= 70
+                      ? "Contact"
+                      : customer.score >= 40
+                        ? "Remind"
+                        : "Review";
+
+                  return (
+                    <tr
+                      key={customer.id}
+                      className="group border-b border-[#f0eae6] transition hover:bg-[#fcf8f6] dark:border-[#3d3035] dark:hover:bg-[#31262b]"
+                    >
+                      <td className="px-4 py-2.5 sm:px-5">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`grid size-7 place-items-center rounded-full text-[9px] font-bold ${
+                              avatarColors[
+                                index %
+                                  avatarColors.length
+                              ]
+                            }`}
+                          >
+                            {initials}
+                          </span>
+
+                          <span className="text-[11px] font-medium text-[#4e4548] dark:text-white">
+                            {customer.name}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`rounded-md border px-2 py-1 text-[10px] font-semibold ${prediction.color}`}
+                        >
+                          {prediction.label}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-2.5 text-[11px] font-semibold text-[#51494b] dark:text-white">
+                        {money(customer.amount)}
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-7 text-[10px] font-semibold ${
+                              customer.score >= 70
+                                ? "text-[#39795d]"
+                                : customer.score >= 40
+                                  ? "text-[#b37b16]"
+                                  : "text-[#b94b55]"
+                            }`}
+                          >
+                            {customer.score}%
+                          </span>
+
+                          <div className="h-1.5 w-[90px] overflow-hidden rounded-full bg-[#e9e4e1]">
+                            <div
+                              className={`h-full rounded-full ${
+                                customer.score >= 70
+                                  ? "bg-[#3f8062]"
+                                  : customer.score >= 40
+                                    ? "bg-[#e4a326]"
+                                    : "bg-[#d6314a]"
+                              }`}
+                              style={{
+                                width: `${customer.score}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-2.5 text-[10px] text-[#776d71]">
+                        {customer.score >= 70
+                          ? "Pays regularly · good history"
+                          : customer.score >= 40
+                            ? "Payment delay · occasional"
+                            : "Long delay · poor history"}
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() =>
+                              onAction?.(
+                                action.toLowerCase(),
+                                customer,
+                              )
+                            }
+                            className="flex min-w-[88px] items-center justify-center gap-1.5 rounded-md border border-[#bd8790] px-2 py-1.5 text-[10px] font-semibold text-[#7a2633] transition hover:bg-[#7a2633] hover:text-white"
+                          >
+                            {action === "Contact" ? (
+                              <Phone size={12} />
+                            ) : action === "Remind" ? (
+                              <Mail size={12} />
+                            ) : (
+                              <AlertTriangle size={12} />
+                            )}
+
+                            {action}
+                          </button>
+
+                          <button className="grid size-7 place-items-center rounded-md text-[#857b7e] opacity-0 transition hover:bg-[#f3ece8] group-hover:opacity-100">
+                            <MoreVertical size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                },
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext.jsx";
 import Modal from "../components/Modal.jsx";
@@ -10,13 +10,34 @@ import CashFlowChart from "../components/CashFlowChart.jsx";
 import QuickActions from "../components/QuickActions.jsx";
 
 export default function Overview() {
-  const { data, customers = [], totals = {} } = useApp();
+  const { data, customers = [] } = useApp();
   const navigate = useNavigate();
+
   const [workflow, setWorkflow] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const transactions = data?.transactions || [];
 
-  // Currency formatter - INR text nahi aayega
+  // Realtime clock - greeting automatically update hoga
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const greeting = useMemo(() => {
+    const hour = currentTime.getHours();
+
+    if (hour >= 5 && hour < 12) return "Good morning";
+    if (hour >= 12 && hour < 17) return "Good afternoon";
+    if (hour >= 17 && hour < 21) return "Good evening";
+
+    return "Good night";
+  }, [currentTime]);
+
+  // Currency formatter
   const money = (value = 0) => {
     const amount = Number(value || 0);
 
@@ -112,14 +133,23 @@ export default function Overview() {
   const attention = useMemo(() => {
     return [...customers]
       .filter((item) => Number(item.outstanding || 0) > 0)
-      .sort((a, b) => Number(a.score || 100) - Number(b.score || 100));
+      .sort(
+        (a, b) =>
+          Number(a.score || 100) -
+          Number(b.score || 100),
+      );
   }, [customers]);
 
   const groups = useMemo(() => {
     const critical = attention
-      .filter((item) => item.overdue?.length && Number(item.score || 100) < 50)
+      .filter(
+        (item) =>
+          item.overdue?.length &&
+          Number(item.score || 100) < 50,
+      )
       .reduce(
-        (sum, item) => sum + Number(item.outstanding || 0),
+        (sum, item) =>
+          sum + Number(item.outstanding || 0),
         0,
       );
 
@@ -131,16 +161,26 @@ export default function Overview() {
           Number(item.score || 100) < 75,
       )
       .reduce(
-        (sum, item) => sum + Number(item.outstanding || 0),
+        (sum, item) =>
+          sum + Number(item.outstanding || 0),
         0,
       );
 
     const dueSoon = attention
       .filter((item) => !item.overdue?.length)
       .reduce(
-        (sum, item) => sum + Number(item.outstanding || 0),
+        (sum, item) =>
+          sum + Number(item.outstanding || 0),
         0,
       );
+
+    const recentlyAdded = Math.max(
+      0,
+      dashboard.receivable -
+        critical -
+        high -
+        dueSoon,
+    );
 
     return [
       {
@@ -157,10 +197,10 @@ export default function Overview() {
       },
       {
         label: "Recently added",
-        amount: 0,
+        amount: recentlyAdded,
       },
     ];
-  }, [attention]);
+  }, [attention, dashboard.receivable]);
 
   const openAction = (action) => {
     if (action === "customer") navigate("/customers");
@@ -173,13 +213,12 @@ export default function Overview() {
     data?.profile?.name?.split(" ")[0] || "User";
 
   return (
-    <div className="mx-auto w-full max-w-[1450px] space-y-7 pb-8">
-
+<div className="mx-auto w-full max-w-[1320px] space-y-5 px-1 pb-5">
       {/* Welcome */}
       <section className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-[28px] font-semibold tracking-tight text-[#423238] dark:text-white md:text-[30px]">
-            Welcome back, {userName}
+            {greeting}, {userName}
           </h1>
 
           <p className="mt-1 text-sm text-[#756d70] dark:text-[#b9adb1]">
@@ -198,7 +237,6 @@ export default function Overview() {
 
       {/* Stats */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
         <StatCard
           label="Total receivable"
           value={money(dashboard.receivable)}
@@ -233,12 +271,10 @@ export default function Overview() {
           type="collected"
           tone="green"
         />
-
       </section>
 
       {/* Money + Health */}
       <section className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
-
         <MoneyStuckCard
           groups={groups}
           total={dashboard.receivable}
@@ -253,25 +289,31 @@ export default function Overview() {
           overdue={dashboard.overdue}
           collected={dashboard.collectedThisMonth}
         />
-
       </section>
 
       {/* AI */}
       <section>
         <AIInsights
-          risky={attention.filter((item) => Number(item.score || 100) < 75).slice(0, 3)}
-          likely={attention.filter((item) => Number(item.score || 100) >= 75).slice(0, 3)}
+          risky={attention
+            .filter(
+              (item) =>
+                Number(item.score || 100) < 75,
+            )
+            .slice(0, 3)}
+          likely={attention
+            .filter(
+              (item) =>
+                Number(item.score || 100) >= 75,
+            )
+            .slice(0, 3)}
           money={money}
         />
       </section>
 
       {/* Chart */}
       <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-
         <CashFlowChart transactions={transactions} />
-
         <QuickActions onAction={openAction} />
-
       </section>
 
       {/* Modal */}
