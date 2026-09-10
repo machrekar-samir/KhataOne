@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import { Heading } from "../components/PageParts.jsx";
 export default function Team() {
   const { data, update, notify } = useApp();

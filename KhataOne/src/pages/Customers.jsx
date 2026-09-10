@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Plus, Search, Phone } from "lucide-react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import EmptyState from "../components/EmptyState.jsx";
 
 export default function Customers() {

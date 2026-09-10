@@ -4,7 +4,6 @@ import {
   Bot,
   TrendingUp,
   TrendingDown,
-  Wallet,
   Users,
   ShieldCheck,
   Phone,

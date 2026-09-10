@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import { Bell, Moon, Search, Sun, Menu, X, UserRound } from "lucide-react";
 
 export default function Header({ onMenu }) {

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppProvider } from "./context/AppContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
-import { useAuth } from "./context/AuthContext.jsx";
+import { useAuth } from "./context/useAuth.js";
 
 import Layout from "./components/Layout.jsx";
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import { dateKey } from "../utils/dateHelpers.js";
 import { money } from "../utils/calculations.js";
 

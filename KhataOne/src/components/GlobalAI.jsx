@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bot, Send, Sparkles, X } from "lucide-react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 
 export default function GlobalAI() {
   const { customers = [], data } = useApp();

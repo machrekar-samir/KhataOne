@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import Modal from "../components/Modal.jsx";
 import StatCard from "../components/StatCard.jsx";
 import MoneyStuckCard from "../components/MoneyStuckCard.jsx";
@@ -16,7 +16,10 @@ export default function Overview() {
   const [workflow, setWorkflow] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const transactions = data?.transactions || [];
+  const transactions = useMemo(
+    () => data?.transactions || [],
+    [data?.transactions],
+  );
 
   // Realtime clock - greeting automatically update hoga
   useEffect(() => {

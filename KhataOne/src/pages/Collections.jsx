@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 import { money } from "../utils/calculations.js";
 
 import {

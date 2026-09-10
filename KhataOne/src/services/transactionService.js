@@ -50,7 +50,8 @@ export const addTransaction = async (userId, value) => {
     throw new Error("User not logged in");
   }
 
-  const { id, ...transactionData } = value;
+  const transactionData = { ...value };
+  delete transactionData.id;
 
   const docRef = await addDoc(
     getTransactionCollection(userId),
@@ -78,7 +79,8 @@ export const updateTransaction = async (userId, value) => {
     value.id,
   );
 
-  const { id, ...transactionData } = value;
+  const transactionData = { ...value };
+  delete transactionData.id;
 
   await updateDoc(transactionRef, {
     ...transactionData,

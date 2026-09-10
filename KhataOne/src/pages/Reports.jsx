@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 
 const Icon = ({ children }) => <span className="text-lg leading-none">{children}</span>;
 
 export default function Reports() {
   const { data, customers } = useApp();
   const [range, setRange] = useState("Sep 1, 2026 - Sep 30, 2026");
-  const tx = data?.transactions || [];
+  const tx = useMemo(
+    () => data?.transactions || [],
+    [data?.transactions],
+  );
 
   const stats = useMemo(() => {
     const received = tx.filter((x) => x.type === "payment" || x.type === "received");

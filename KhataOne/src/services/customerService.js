@@ -45,7 +45,8 @@ export const subscribeToCustomers = (userId, callback) => {
 export const addCustomer = async (userId, value) => {
   if (!userId) throw new Error("User not logged in");
 
-  const { id, ...data } = value;
+  const data = { ...value };
+  delete data.id;
 
   const docRef = await addDoc(getCustomerCollection(userId), {
     ...data,
@@ -69,7 +70,8 @@ export const updateCustomer = async (userId, value) => {
     value.id
   );
 
-  const { id, ...data } = value;
+  const data = { ...value };
+  delete data.id;
 
   await setDoc(
     customerRef,

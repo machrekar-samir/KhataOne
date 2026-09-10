@@ -1,6 +1,42 @@
 import { HeartPulse } from "lucide-react";
 import { useMemo } from "react";
 
+const Progress = ({ label, value }) => {
+  const safeValue = Math.min(
+    100,
+    Math.max(0, Math.round(Number(value) || 0)),
+  );
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[11px] font-medium text-[#655c60] dark:text-[#c9bec1]">
+          {label}
+        </span>
+
+        <span className="text-[11px] font-semibold text-[#655c60] dark:text-white">
+          {safeValue}%
+        </span>
+      </div>
+
+      <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4e1] dark:bg-[#45363b]">
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{
+            width: `${safeValue}%`,
+            backgroundColor:
+              safeValue >= 75
+                ? "#66887a"
+                : safeValue >= 45
+                  ? "#c99a3b"
+                  : "#b94b55",
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 export default function BusinessHealth({
   customers = [],
   transactions = [],
@@ -122,42 +158,6 @@ export default function BusinessHealth({
         : health.overall >= 40
           ? "#c99232"
           : "#b94b55";
-
-  const Progress = ({ label, value }) => {
-    const safeValue = Math.min(
-      100,
-      Math.max(0, Math.round(Number(value) || 0)),
-    );
-
-    return (
-      <div>
-        <div className="mb-1 flex items-center justify-between">
-          <span className="text-[11px] font-medium text-[#655c60] dark:text-[#c9bec1]">
-            {label}
-          </span>
-
-          <span className="text-[11px] font-semibold text-[#655c60] dark:text-white">
-            {safeValue}%
-          </span>
-        </div>
-
-        <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4e1] dark:bg-[#45363b]">
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-out"
-            style={{
-              width: `${safeValue}%`,
-              backgroundColor:
-                safeValue >= 75
-                  ? "#66887a"
-                  : safeValue >= 45
-                    ? "#c99a3b"
-                    : "#b94b55",
-            }}
-          />
-        </div>
-      </div>
-    );
-  };
 
   return (
     <section className="rounded-[20px] border border-[#ddd6d0] bg-[#fffdfb] p-5 shadow-sm dark:border-[#423238] dark:bg-[#2a2024]">

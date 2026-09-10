@@ -1,5 +1,5 @@
 import { Heading } from "../components/PageParts.jsx";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 export default function Notifications() {
   const { data } = useApp();
   return (

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useApp } from "../context/AppContext.jsx";
+import { useState } from "react";
+import { useApp } from "../context/useApp.js";
 import { auth } from "../config/firebase.js";
 import {
   EmailAuthProvider,
@@ -14,7 +14,6 @@ import {
   SlidersHorizontal,
   Bell,
   Database,
-  UsersRound,
   TriangleAlert,
   Upload,
   Eye,
@@ -26,7 +25,6 @@ import {
   CloudCog,
   RotateCcw,
   Trash2,
-  Crown,
   ChevronDown,
   ChevronRight,
   Camera,
@@ -36,19 +34,19 @@ import {
 export default function Settings() {
   const { data, update, notify } = useApp();
 
-  const [business, setBusiness] = useState({
-    name: "",
-    type: "Retail Shop",
-    phone: "",
-    address: "",
-    logo: "",
-  });
+  const [business, setBusiness] = useState(() => ({
+    name: data?.business?.name || "",
+    type: data?.business?.type || "Retail Shop",
+    phone: data?.business?.phone || "",
+    address: data?.business?.address || "",
+    logo: data?.business?.logo || "",
+  }));
 
-  const [profile, setProfile] = useState({
-    name: "",
-    email: "",
-    role: "Owner",
-  });
+  const [profile, setProfile] = useState(() => ({
+    name: data?.profile?.name || "",
+    email: data?.profile?.email || auth.currentUser?.email || "",
+    role: data?.profile?.role || "Owner",
+  }));
 
   const [passwords, setPasswords] = useState({
     current: "",
@@ -80,31 +78,6 @@ export default function Settings() {
 
   const [saving, setSaving] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-
-  useEffect(() => {
-    if (data?.business) {
-      setBusiness({
-        name: data.business.name || "",
-        type: data.business.type || "Retail Shop",
-        phone: data.business.phone || "",
-        address: data.business.address || "",
-        logo: data.business.logo || "",
-      });
-    }
-
-    if (data?.profile) {
-      setProfile({
-        name: data.profile.name || "",
-        email: data.profile.email || auth.currentUser?.email || "",
-        role: data.profile.role || "Owner",
-      });
-    } else if (auth.currentUser) {
-      setProfile((prev) => ({
-        ...prev,
-        email: auth.currentUser.email || "",
-      }));
-    }
-  }, [data]);
 
   /* ================= SAVE SETTINGS ================= */
 

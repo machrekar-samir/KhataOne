@@ -16,7 +16,7 @@ import {
   useParams,
 } from "react-router-dom";
 
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 
 import { byId } from "../utils/helpers.js";
 
@@ -30,7 +30,6 @@ export default function CustomerDetails() {
   const navigate = useNavigate();
 
   const {
-    data,
     customers,
     reminder,
     deleteCustomer,

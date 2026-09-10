@@ -3,7 +3,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar.jsx";
 import Header from "./Header.jsx";
 import AIChatbot from "./AIChatbot.jsx";
-import { useApp } from "../context/AppContext.jsx";
+import { useApp } from "../context/useApp.js";
 
 export default function Layout() {
   const { toast } = useApp();

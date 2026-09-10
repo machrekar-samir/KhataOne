@@ -17,7 +17,6 @@ import {
   Headphones,
   ArrowRight,
   BarChart3,
-  TrendingUp,
   CircleDollarSign,
 } from "lucide-react";
 

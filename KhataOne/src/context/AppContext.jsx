@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -39,8 +37,7 @@ import {
 } from "../services/reminderService.js";
 
 import { auth } from "../config/firebase.js";
-
-const AppContext = createContext(null);
+import { AppContext } from "./appContext.js";
 
 export function AppProvider({ children }) {
   const [data, setData] = useState(loadWorkspace);
@@ -48,9 +45,9 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
   const [reminders, setReminders] = useState([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(true);
-  const [loadingTransactions, setLoadingTransactions] = useState(true);
-  const [loadingReminders, setLoadingReminders] = useState(true);
+  const [loadedCustomersUid, setLoadedCustomersUid] = useState(null);
+  const [loadedTransactionsUid, setLoadedTransactionsUid] = useState(null);
+  const [loadedRemindersUid, setLoadedRemindersUid] = useState(null);
 
   /* AUTH */
   useEffect(() => {
@@ -62,15 +59,8 @@ export function AppProvider({ children }) {
   /* CUSTOMERS REALTIME */
   useEffect(() => {
     if (!user?.uid) {
-      setData((current) => ({
-        ...current,
-        customers: [],
-      }));
-      setLoadingCustomers(false);
       return;
     }
-
-    setLoadingCustomers(true);
 
     const unsubscribe = subscribeToCustomers(
       user.uid,
@@ -80,7 +70,7 @@ export function AppProvider({ children }) {
           customers: firebaseCustomers,
         }));
 
-        setLoadingCustomers(false);
+        setLoadedCustomersUid(user.uid);
       },
     );
 
@@ -90,15 +80,8 @@ export function AppProvider({ children }) {
   /* TRANSACTIONS REALTIME */
   useEffect(() => {
     if (!user?.uid) {
-      setData((current) => ({
-        ...current,
-        transactions: [],
-      }));
-      setLoadingTransactions(false);
       return;
     }
-
-    setLoadingTransactions(true);
 
     const unsubscribe = subscribeToTransactions(
       user.uid,
@@ -108,7 +91,7 @@ export function AppProvider({ children }) {
           transactions: firebaseTransactions,
         }));
 
-        setLoadingTransactions(false);
+        setLoadedTransactionsUid(user.uid);
       },
     );
 
@@ -118,18 +101,14 @@ export function AppProvider({ children }) {
   /* REMINDERS REALTIME */
   useEffect(() => {
     if (!user?.uid) {
-      setReminders([]);
-      setLoadingReminders(false);
       return;
     }
-
-    setLoadingReminders(true);
 
     const unsubscribe = subscribeToReminders(
       user.uid,
       (firebaseReminders) => {
         setReminders(firebaseReminders);
-        setLoadingReminders(false);
+        setLoadedRemindersUid(user.uid);
       },
     );
 
@@ -141,26 +120,40 @@ export function AppProvider({ children }) {
     saveWorkspace(data);
   }, [data]);
 
+  const visibleData = useMemo(
+    () =>
+      user
+        ? data
+        : {
+            ...data,
+            customers: [],
+            transactions: [],
+          },
+    [data, user],
+  );
+
+  const visibleReminders = user ? reminders : [];
+
   /* CUSTOMER STATS */
   const customers = useMemo(
     () =>
-      (data.customers || []).map((item) =>
+      (visibleData.customers || []).map((item) =>
         customerStats(
           item,
-          data.transactions || [],
+          visibleData.transactions || [],
         ),
       ),
-    [data.customers, data.transactions],
+    [visibleData],
   );
 
   /* TOTALS */
   const totals = useMemo(
     () =>
       metrics(
-        data.transactions || [],
+        visibleData.transactions || [],
         range,
       ),
-    [data.transactions, range],
+    [visibleData, range],
   );
 
   /* UPDATE */
@@ -449,11 +442,11 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
-        data,
+        data: visibleData,
         customers,
         totals,
 
-        reminders,
+        reminders: visibleReminders,
 
         range,
         setRange,
@@ -461,9 +454,9 @@ export function AppProvider({ children }) {
         toast,
         user,
 
-        loadingCustomers,
-        loadingTransactions,
-        loadingReminders,
+        loadingCustomers: Boolean(user?.uid) && loadedCustomersUid !== user.uid,
+        loadingTransactions: Boolean(user?.uid) && loadedTransactionsUid !== user.uid,
+        loadingReminders: Boolean(user?.uid) && loadedRemindersUid !== user.uid,
 
         update,
         notify,
@@ -482,7 +475,3 @@ export function AppProvider({ children }) {
     </AppContext.Provider>
   );
 }
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const useApp = () =>
-  useContext(AppContext);
