@@ -8,8 +8,16 @@ import {
 
 import { onAuthStateChanged } from "firebase/auth";
 
-import { customerStats, metrics, money } from "../utils/calculations.js";
-import { loadWorkspace, saveWorkspace } from "../services/storageService.js";
+import {
+  customerStats,
+  metrics,
+  money,
+} from "../utils/calculations.js";
+
+import {
+  loadWorkspace,
+  saveWorkspace,
+} from "../services/storageService.js";
 
 import {
   addCustomer,
@@ -25,6 +33,11 @@ import {
   subscribeToTransactions,
 } from "../services/transactionService.js";
 
+import {
+  createReminder,
+  subscribeToReminders,
+} from "../services/reminderService.js";
+
 import { auth } from "../config/firebase.js";
 
 const AppContext = createContext(null);
@@ -34,23 +47,19 @@ export function AppProvider({ children }) {
   const [range, setRange] = useState("month");
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
+  const [reminders, setReminders] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [loadingReminders, setLoadingReminders] = useState(true);
 
-  // =========================
-  // AUTH USER
-  // =========================
+  /* AUTH */
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    return onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
-
-    return unsubscribe;
   }, []);
 
-  // =========================
-  // FIRESTORE CUSTOMERS
-  // =========================
+  /* CUSTOMERS REALTIME */
   useEffect(() => {
     if (!user?.uid) {
       setData((current) => ({
@@ -78,9 +87,7 @@ export function AppProvider({ children }) {
     return unsubscribe;
   }, [user?.uid]);
 
-  // =========================
-  // FIRESTORE TRANSACTIONS
-  // =========================
+  /* TRANSACTIONS REALTIME */
   useEffect(() => {
     if (!user?.uid) {
       setData((current) => ({
@@ -108,57 +115,77 @@ export function AppProvider({ children }) {
     return unsubscribe;
   }, [user?.uid]);
 
-  // =========================
-  // LOCAL STORAGE
-  // Other UI data backup
-  // =========================
+  /* REMINDERS REALTIME */
+  useEffect(() => {
+    if (!user?.uid) {
+      setReminders([]);
+      setLoadingReminders(false);
+      return;
+    }
+
+    setLoadingReminders(true);
+
+    const unsubscribe = subscribeToReminders(
+      user.uid,
+      (firebaseReminders) => {
+        setReminders(firebaseReminders);
+        setLoadingReminders(false);
+      },
+    );
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  /* LOCAL BACKUP */
   useEffect(() => {
     saveWorkspace(data);
   }, [data]);
 
-  // =========================
-  // CUSTOMERS WITH STATS
-  // =========================
+  /* CUSTOMER STATS */
   const customers = useMemo(
     () =>
-      data.customers.map((item) =>
-        customerStats(item, data.transactions),
+      (data.customers || []).map((item) =>
+        customerStats(
+          item,
+          data.transactions || [],
+        ),
       ),
     [data.customers, data.transactions],
   );
 
-  // =========================
-  // DASHBOARD TOTALS
-  // =========================
+  /* TOTALS */
   const totals = useMemo(
-    () => metrics(data.transactions, range),
+    () =>
+      metrics(
+        data.transactions || [],
+        range,
+      ),
     [data.transactions, range],
   );
 
-  // =========================
-  // GENERAL UPDATE
-  // =========================
-  const update = (changes) =>
+  /* UPDATE */
+  const update = (changes) => {
     setData((current) => ({
       ...current,
       ...changes,
     }));
+  };
 
-  // =========================
-  // TOAST
-  // =========================
+  /* TOAST */
   const notify = (message) => {
     setToast(message);
 
-    window.setTimeout(() => {
-      setToast("");
-    }, 2400);
+    window.setTimeout(
+      () => setToast(""),
+      2400,
+    );
   };
 
-  // =========================
-  // ACTIVITY
-  // =========================
-  const activity = (title, detail = "") => {
+  /* ACTIVITY */
+  const activity = (
+    title,
+    detail = "",
+  ) => {
     setData((current) => ({
       ...current,
       activities: [
@@ -168,57 +195,81 @@ export function AppProvider({ children }) {
           detail,
           date: new Date().toISOString(),
         },
-        ...current.activities,
+        ...(current.activities || []),
       ].slice(0, 30),
     }));
   };
 
-  // =========================
-  // SAVE CUSTOMER
-  // =========================
+  /* SAVE CUSTOMER */
   const saveCustomer = async (value) => {
     if (!user?.uid) {
       notify("Please login first");
-      return;
+      return false;
     }
 
     try {
       const exists = Boolean(value.id);
 
       if (exists) {
-        await updateCustomer(user.uid, value);
+        await updateCustomer(
+          user.uid,
+          value,
+        );
       } else {
-        await addCustomer(user.uid, value);
+        await addCustomer(
+          user.uid,
+          value,
+        );
       }
 
       activity(
-        exists ? "Customer updated" : "Customer added",
+        exists
+          ? "Customer updated"
+          : "Customer added",
         value.name,
       );
 
-      notify(exists ? "Customer updated" : "Customer saved");
+      notify(
+        exists
+          ? "Customer updated"
+          : "Customer saved",
+      );
+
+      return true;
     } catch (error) {
-      console.error("Customer save error:", error);
-      notify("Failed to save customer");
+      console.error(
+        "Customer save error:",
+        error,
+      );
+
+      notify(
+        "Failed to save customer",
+      );
+
+      return false;
     }
   };
 
-  // =========================
-  // SAVE TRANSACTION
-  // =========================
+  /* SAVE TRANSACTION */
   const saveTxn = async (value) => {
     if (!user?.uid) {
       notify("Please login first");
-      return;
+      return false;
     }
 
     try {
       const exists = Boolean(value.id);
 
       if (exists) {
-        await updateTransaction(user.uid, value);
+        await updateTransaction(
+          user.uid,
+          value,
+        );
       } else {
-        await addTransaction(user.uid, value);
+        await addTransaction(
+          user.uid,
+          value,
+        );
       }
 
       activity(
@@ -229,7 +280,7 @@ export function AppProvider({ children }) {
             : "Transaction created",
         money(
           Number(value.amount || 0),
-          data.business?.currency || "INR",
+          data.business?.currency || "₹",
         ),
       );
 
@@ -238,25 +289,35 @@ export function AppProvider({ children }) {
           ? "Transaction updated"
           : "Transaction saved",
       );
+
+      return true;
     } catch (error) {
-      console.error("Transaction save error:", error);
-      notify("Failed to save transaction");
+      console.error(
+        "Transaction save error:",
+        error,
+      );
+
+      notify(
+        "Failed to save transaction",
+      );
+
+      return false;
     }
   };
 
-  // =========================
-  // DELETE CUSTOMER
-  // =========================
+  /* DELETE CUSTOMER */
   const deleteCustomer = async (id) => {
     if (!user?.uid) {
       notify("Please login first");
-      return;
+      return false;
     }
 
     try {
-      const item = data.customers.find(
-        (customer) => customer.id === id,
-      );
+      const item =
+        (data.customers || []).find(
+          (customer) =>
+            customer.id === id,
+        );
 
       await deleteCustomerFromFirestore(
         user.uid,
@@ -268,24 +329,30 @@ export function AppProvider({ children }) {
         item?.name || "",
       );
 
-      notify("Customer deleted");
+      notify(
+        "Customer deleted",
+      );
+
+      return true;
     } catch (error) {
       console.error(
         "Customer delete error:",
         error,
       );
 
-      notify("Failed to delete customer");
+      notify(
+        "Failed to delete customer",
+      );
+
+      return false;
     }
   };
 
-  // =========================
-  // DELETE TRANSACTION
-  // =========================
+  /* DELETE TRANSACTION */
   const deleteTxn = async (id) => {
     if (!user?.uid) {
       notify("Please login first");
-      return;
+      return false;
     }
 
     try {
@@ -294,55 +361,89 @@ export function AppProvider({ children }) {
         id,
       );
 
-      activity("Transaction deleted");
+      activity(
+        "Transaction deleted",
+      );
 
-      notify("Transaction deleted");
+      notify(
+        "Transaction deleted",
+      );
+
+      return true;
     } catch (error) {
       console.error(
         "Transaction delete error:",
         error,
       );
 
-      notify("Failed to delete transaction");
+      notify(
+        "Failed to delete transaction",
+      );
+
+      return false;
     }
   };
 
-  // =========================
-  // REMINDER
-  // =========================
-  const reminder = (customer) => {
-    setData((current) => ({
-      ...current,
+  /* CREATE REMINDER */
+  const reminder = async (
+    customer,
+    channel = "WhatsApp",
+    message = "",
+  ) => {
+    if (!user?.uid) {
+      notify("Please login first");
+      return false;
+    }
 
-      reminders: [
-        {
-          id: crypto.randomUUID(),
-          customerId: customer.id,
-          amount: customer.outstanding,
-          type: "Friendly",
-          channel: "WhatsApp",
-          status: "Demo queued",
-          date: new Date().toISOString(),
-        },
-        ...current.reminders,
-      ],
+    if (!customer?.id) {
+      notify(
+        "Customer ID missing",
+      );
+      return false;
+    }
 
-      notifications: [
-        {
-          id: crypto.randomUUID(),
-          text: `Reminder queued for ${customer.name}`,
-          read: false,
-        },
-        ...current.notifications,
-      ],
-    }));
+    if (
+      Number(
+        customer.outstanding || 0,
+      ) <= 0
+    ) {
+      notify(
+        "No pending amount for this customer",
+      );
+      return false;
+    }
 
-    activity(
-      "Reminder sent",
-      `${customer.name} via WhatsApp`,
-    );
+    try {
+      await createReminder(
+        user.uid,
+        customer,
+        channel,
+        message,
+      );
 
-    notify("Reminder queued in demo mode");
+      activity(
+        "Reminder created",
+        `${customer.name} via ${channel}`,
+      );
+
+      notify(
+        `${channel} reminder queued`,
+      );
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Reminder error:",
+        error,
+      );
+
+      notify(
+        error?.message ||
+          "Failed to create reminder",
+      );
+
+      return false;
+    }
   };
 
   return (
@@ -351,19 +452,29 @@ export function AppProvider({ children }) {
         data,
         customers,
         totals,
+
+        reminders,
+
         range,
         setRange,
+
         toast,
         user,
+
         loadingCustomers,
         loadingTransactions,
+        loadingReminders,
+
         update,
         notify,
         activity,
+
         saveCustomer,
         saveTxn,
+
         deleteCustomer,
         deleteTxn,
+
         reminder,
       }}
     >
@@ -373,4 +484,5 @@ export function AppProvider({ children }) {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useApp = () => useContext(AppContext);
+export const useApp = () =>
+  useContext(AppContext);
