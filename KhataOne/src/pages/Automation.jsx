@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import {
   Plus,
   Zap,
@@ -18,43 +19,23 @@ import {
   ArrowRight,
   BarChart3,
   CircleDollarSign,
+  X,
+  Trash2,
+  Save,
 } from "lucide-react";
 
-const defaultWorkflows = [
-  {
-    id: "due",
-    title: "Payment due",
-    detail: "When an invoice reaches its due date",
-    action: "Send a friendly reminder",
-    actionDetail: "Notify customer on the due date",
-    status: "Active",
-    tone: "green",
-    icon: CalendarDays,
-    actionIcon: UserRound,
-  },
-  {
-    id: "overdue",
-    title: "Payment overdue",
-    detail: "Three days after the due date",
-    action: "Send a professional reminder",
-    actionDetail: "Notify customer 3 days after due date",
-    status: "Active",
-    tone: "amber",
-    icon: Clock3,
-    actionIcon: Mail,
-  },
-  {
-    id: "owner",
-    title: "Owner alert",
-    detail: "When a payment is more than 15 days late",
-    action: "Notify owner",
-    actionDetail: "Send an alert to business owner",
-    status: "Paused",
-    tone: "red",
-    icon: UserRound,
-    actionIcon: Bell,
-  },
-];
+import { useAuth } from "../context/useAuth.js";
+
+import {
+  addAutomation,
+  deleteAutomation,
+  initializeAutomations,
+  subscribeToAutomations,
+  updateAutomation,
+} from "../services/automationService.js";
+
+import { subscribeToReminders } from "../services/reminderService.js";
+import { subscribeToTransactions } from "../services/transactionService.js";
 
 const tone = {
   green: {
@@ -71,54 +52,293 @@ const tone = {
   },
 };
 
+const icons = {
+  calendar: CalendarDays,
+  clock: Clock3,
+  user: UserRound,
+  bell: Bell,
+  mail: Mail,
+  zap: Zap,
+};
+
 export default function Automation() {
-  const [workflows, setWorkflows] = useState(defaultWorkflows);
+  const { user } = useAuth();
 
-  const toggle = (id) => {
-    setWorkflows((items) =>
-      items.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status:
-                item.status === "Active" ? "Paused" : "Active",
-            }
-          : item,
-      ),
+  const [workflows, setWorkflows] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("month");
+
+  const [editing, setEditing] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [guide, setGuide] = useState(false);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setWorkflows([]);
+      setReminders([]);
+      setTransactions([]);
+      return;
+    }
+
+    setLoading(true);
+
+    initializeAutomations(user.uid).catch(
+      (error) =>
+        console.error(
+          "Automation initialization error:",
+          error,
+        ),
     );
+
+    const unsubAutomation =
+      subscribeToAutomations(
+        user.uid,
+        (items) => {
+          setWorkflows(items);
+          setLoading(false);
+        },
+      );
+
+    const unsubReminders =
+      subscribeToReminders(
+        user.uid,
+        setReminders,
+      );
+
+    const unsubTransactions =
+      subscribeToTransactions(
+        user.uid,
+        setTransactions,
+      );
+
+    return () => {
+      unsubAutomation();
+      unsubReminders();
+      unsubTransactions();
+    };
+  }, [user?.uid]);
+
+  const stats = useMemo(() => {
+    const now = new Date();
+
+    const getDate = (value) => {
+      if (!value) return null;
+
+      if (value?.toDate) {
+        return value.toDate();
+      }
+
+      if (value?.seconds) {
+        return new Date(
+          value.seconds * 1000,
+        );
+      }
+
+      const date = new Date(value);
+
+      return Number.isNaN(date.getTime())
+        ? null
+        : date;
+    };
+
+    const start = new Date(now);
+    const previousStart = new Date(now);
+
+    if (period === "month") {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+
+      previousStart.setMonth(
+        previousStart.getMonth() - 1,
+        1,
+      );
+      previousStart.setHours(0, 0, 0, 0);
+    }
+
+    if (period === "last") {
+      start.setMonth(
+        start.getMonth() - 1,
+        1,
+      );
+      start.setHours(0, 0, 0, 0);
+
+      previousStart.setMonth(
+        previousStart.getMonth() - 2,
+        1,
+      );
+      previousStart.setHours(0, 0, 0, 0);
+    }
+
+    if (period === "year") {
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+
+      previousStart.setFullYear(
+        previousStart.getFullYear() - 1,
+        0,
+        1,
+      );
+      previousStart.setHours(0, 0, 0, 0);
+    }
+
+    const inPeriod = (value) => {
+      const date = getDate(value);
+
+      return date && date >= start;
+    };
+
+    const monthReminders =
+      reminders.filter((item) =>
+        inPeriod(item.createdAt),
+      );
+
+    const payments =
+      transactions.filter(
+        (item) =>
+          String(item.type || "").toLowerCase() ===
+            "payment" &&
+          inPeriod(
+            item.date || item.createdAt,
+          ),
+      );
+
+    const sent = monthReminders.filter(
+      (item) =>
+        ["sent", "completed"].includes(
+          String(
+            item.status || "",
+          ).toLowerCase(),
+        ),
+    ).length;
+
+    const recovered =
+      payments.reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
+        0,
+      );
+
+    const deliveryRate =
+      monthReminders.length
+        ? Math.round(
+            (sent /
+              monthReminders.length) *
+              100,
+          )
+        : 0;
+
+    return {
+      reminders: monthReminders.length,
+      payments: payments.length,
+      recovered,
+      deliveryRate,
+    };
+  }, [
+    reminders,
+    transactions,
+    period,
+  ]);
+
+  const toggle = async (workflow) => {
+    try {
+      await updateAutomation(
+        user.uid,
+        workflow.id,
+        {
+          status:
+            workflow.status === "Active"
+              ? "Paused"
+              : "Active",
+        },
+      );
+    } catch (error) {
+      console.error(
+        "Toggle error:",
+        error,
+      );
+    }
   };
 
-  const createAutomation = () => {
-    setWorkflows((items) => [
-      ...items,
-      {
-        id: `custom-${Date.now()}`,
-        title: "Custom automation",
-        detail: "Create your own workflow with custom conditions",
-        action: "Friendly reminder",
-        actionDetail: "Configure your next follow-up",
-        status: "Paused",
-        tone: "green",
-        icon: Zap,
-        actionIcon: Bell,
-      },
-    ]);
+  const createAutomation = async () => {
+    try {
+      await addAutomation(
+        user.uid,
+        {
+          title: "Custom automation",
+          detail:
+            "Create your own workflow with custom conditions",
+          action: "Friendly reminder",
+          actionDetail:
+            "Configure your next follow-up",
+          status: "Paused",
+          tone: "green",
+          icon: "zap",
+          actionIcon: "bell",
+        },
+      );
+    } catch (error) {
+      console.error(
+        "Create automation error:",
+        error,
+      );
+    }
   };
 
-  const remove = (id) => {
-    setWorkflows((items) =>
-      items.filter((item) => item.id !== id),
-    );
+  const saveEdit = async () => {
+    if (!editing?.id) return;
+
+    try {
+      await updateAutomation(
+        user.uid,
+        editing.id,
+        {
+          title: editing.title,
+          detail: editing.detail,
+          action: editing.action,
+          actionDetail:
+            editing.actionDetail,
+          status: editing.status,
+        },
+      );
+
+      setEditing(null);
+    } catch (error) {
+      console.error(
+        "Edit automation error:",
+        error,
+      );
+    }
+  };
+
+  const remove = async (id) => {
+    try {
+      await deleteAutomation(
+        user.uid,
+        id,
+      );
+
+      setMenu(null);
+    } catch (error) {
+      console.error(
+        "Delete automation error:",
+        error,
+      );
+    }
   };
 
   return (
-    <div className="w-full space-y-5 pb-8">
+    <div
+      className="w-full space-y-5 pb-8"
+      onClick={() => setMenu(null)}
+    >
 
-      {/* ================= HERO ================= */}
+      {/* HERO */}
       <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#fffdfb] via-[#fff9f7] to-[#f8eeeb] px-5 py-6 dark:from-[#2d2327] dark:via-[#2a2024] dark:to-[#32272b] sm:px-7 sm:py-7">
 
         <div className="relative z-10 max-w-[760px]">
-
           <p className="text-[10px] font-bold tracking-[1.8px] text-[#9d777d]">
             COLLECTION WORKFLOWS
           </p>
@@ -138,15 +358,17 @@ export default function Automation() {
             </div>
 
             <button
-              onClick={createAutomation}
-              className="flex shrink-0 items-center justify-center gap-2 rounded-[9px] bg-[#8f2039] px-5 py-3 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#731b30] hover:shadow-md active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                createAutomation();
+              }}
+              className="flex shrink-0 items-center justify-center gap-2 rounded-[9px] bg-[#8f2039] px-5 py-3 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#731b30] active:scale-95"
             >
               <Plus size={16} />
               Create automation
             </button>
           </div>
 
-          {/* BENEFITS */}
           <div className="mt-6 flex flex-wrap gap-x-7 gap-y-3">
             <Benefit icon={Zap} text="Automate follow-ups" />
             <Benefit icon={Clock3} text="Save time" />
@@ -155,28 +377,47 @@ export default function Automation() {
           </div>
         </div>
 
-        {/* DECORATION */}
         <div className="pointer-events-none absolute right-8 top-5 hidden w-[360px] lg:block">
           <AutomationVisual />
         </div>
       </section>
 
-      {/* ================= MAIN GRID ================= */}
+      {/* MAIN */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(290px,.8fr)]">
 
-        {/* ================= LEFT ================= */}
         <div className="space-y-4">
 
-          {workflows.map((workflow) => (
-            <WorkflowCard
-              key={workflow.id}
-              workflow={workflow}
-              toggle={toggle}
-              remove={remove}
-            />
-          ))}
+          {loading ? (
+            <div className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-8 text-center text-sm text-[#777]">
+              Loading automations...
+            </div>
+          ) : workflows.length === 0 ? (
+            <div className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-8 text-center dark:bg-[#2b2226]">
+              <p className="text-sm text-[#68748a]">
+                No automations yet.
+              </p>
 
-          {/* CUSTOM */}
+              <button
+                onClick={createAutomation}
+                className="mt-4 rounded-lg bg-[#8f2039] px-4 py-2 text-xs font-bold text-white"
+              >
+                Create automation
+              </button>
+            </div>
+          ) : (
+            workflows.map((workflow) => (
+              <WorkflowCard
+                key={workflow.id}
+                workflow={workflow}
+                toggle={toggle}
+                remove={remove}
+                menu={menu}
+                setMenu={setMenu}
+                setEditing={setEditing}
+              />
+            ))
+          )}
+
           <button
             onClick={createAutomation}
             className="group flex w-full flex-col gap-4 rounded-[16px] border border-[#ead9d6] bg-gradient-to-r from-[#fffafa] to-[#fffdfb] p-5 text-left transition hover:-translate-y-0.5 hover:border-[#bd8790] hover:shadow-md dark:border-[#493b40] dark:bg-[#2b2226] sm:flex-row sm:items-center sm:justify-between"
@@ -192,81 +433,91 @@ export default function Automation() {
                 </h3>
 
                 <p className="mt-1 text-[11px] text-[#68748a]">
-                  Create your own workflow with custom conditions and
-                  messages.
+                  Create your own workflow with custom conditions and messages.
                 </p>
               </div>
             </div>
 
-            <span className="flex items-center justify-center gap-2 rounded-[8px] bg-[#8f2039] px-5 py-2.5 text-[11px] font-bold text-white transition group-hover:bg-[#731b30]">
+            <span className="flex items-center justify-center gap-2 rounded-[8px] bg-[#8f2039] px-5 py-2.5 text-[11px] font-bold text-white">
               <Plus size={15} />
               Create automation
             </span>
           </button>
         </div>
 
-        {/* ================= RIGHT ================= */}
+        {/* RIGHT */}
         <div className="space-y-4">
 
-          {/* STATS */}
-          <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-4 shadow-[0_4px_15px_rgba(73,48,35,.04)] dark:border-[#423238] dark:bg-[#2b2226]">
+          <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-4 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]">
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <BarChart3 size={18} className="text-[#8f2039]" />
+                <BarChart3
+                  size={18}
+                  className="text-[#8f2039]"
+                />
 
                 <h2 className="text-[15px] font-bold text-[#17233c] dark:text-white">
                   Automation stats
                 </h2>
               </div>
 
-              <select className="rounded-lg border border-[#ddd5d0] bg-white px-2.5 py-2 text-[10px] text-[#596477] outline-none dark:border-[#493b40] dark:bg-[#32272b]">
-                <option>This Month</option>
-                <option>Last Month</option>
-                <option>This Year</option>
+              <select
+                value={period}
+                onChange={(e) =>
+                  setPeriod(e.target.value)
+                }
+                className="rounded-lg border border-[#ddd5d0] bg-white px-2.5 py-2 text-[10px] text-[#596477] outline-none dark:border-[#493b40] dark:bg-[#32272b]"
+              >
+                <option value="month">
+                  This Month
+                </option>
+                <option value="last">
+                  Last Month
+                </option>
+                <option value="year">
+                  This Year
+                </option>
               </select>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               <StatBox
                 icon={Send}
-                value="24"
+                value={stats.reminders}
                 label="Reminders sent"
-                growth="↑ 18%"
                 tone="pink"
               />
 
               <StatBox
                 icon={Users}
-                value="16"
+                value={stats.payments}
                 label="Payments received"
-                growth="↑ 27%"
                 tone="green"
               />
 
               <StatBox
                 icon={CircleDollarSign}
-                value="₹48,500"
+                value={`₹${stats.recovered.toLocaleString("en-IN")}`}
                 label="Recovered amount"
-                growth="↑ 32%"
                 tone="pink"
               />
 
               <StatBox
                 icon={CheckCircle2}
-                value="92%"
+                value={`${stats.deliveryRate}%`}
                 label="Delivery rate"
-                growth="↑ 6%"
                 tone="green"
               />
             </div>
           </section>
 
-          {/* TIPS */}
-          <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-5 shadow-[0_4px_15px_rgba(73,48,35,.04)] dark:border-[#423238] dark:bg-[#2b2226]">
-
+          <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-5 shadow-sm dark:border-[#423238] dark:bg-[#2b2226]">
             <div className="flex items-center gap-2">
-              <Lightbulb size={20} className="text-[#8f2039]" />
+              <Lightbulb
+                size={20}
+                className="text-[#8f2039]"
+              />
 
               <h2 className="text-[15px] font-bold text-[#17233c] dark:text-white">
                 Tips for better results
@@ -295,9 +546,7 @@ export default function Automation() {
             </div>
           </section>
 
-          {/* HELP */}
           <section className="relative overflow-hidden rounded-[16px] border border-[#eedbdc] bg-gradient-to-br from-[#fffafa] to-[#fdf0f0] p-5 dark:border-[#493b40] dark:from-[#302529] dark:to-[#35282c]">
-
             <div className="flex gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f9e5e8] text-[#8f2039]">
                 <Headphones size={20} />
@@ -312,7 +561,10 @@ export default function Automation() {
                   Learn how to set up automation with our detailed guide.
                 </p>
 
-                <button className="mt-3 flex items-center gap-2 rounded-lg border border-[#8f2039] px-4 py-2 text-[10px] font-bold text-[#7a2633] transition hover:bg-[#8f2039] hover:text-white">
+                <button
+                  onClick={() => setGuide(true)}
+                  className="mt-3 flex items-center gap-2 rounded-lg border border-[#8f2039] px-4 py-2 text-[10px] font-bold text-[#7a2633] transition hover:bg-[#8f2039] hover:text-white"
+                >
                   View Guide
                   <ArrowRight size={13} />
                 </button>
@@ -321,27 +573,168 @@ export default function Automation() {
           </section>
         </div>
       </div>
+
+      {/* EDIT MODAL */}
+      {editing && (
+        <Modal onClose={() => setEditing(null)}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[#17233c] dark:text-white">
+              Edit automation
+            </h2>
+
+            <button
+              onClick={() => setEditing(null)}
+              className="rounded-lg p-2 hover:bg-[#f5eeee]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            <Field
+              label="Title"
+              value={editing.title}
+              onChange={(value) =>
+                setEditing({
+                  ...editing,
+                  title: value,
+                })
+              }
+            />
+
+            <Field
+              label="Condition"
+              value={editing.detail}
+              onChange={(value) =>
+                setEditing({
+                  ...editing,
+                  detail: value,
+                })
+              }
+            />
+
+            <Field
+              label="Action"
+              value={editing.action}
+              onChange={(value) =>
+                setEditing({
+                  ...editing,
+                  action: value,
+                })
+              }
+            />
+
+            <Field
+              label="Action detail"
+              value={editing.actionDetail}
+              onChange={(value) =>
+                setEditing({
+                  ...editing,
+                  actionDetail: value,
+                })
+              }
+            />
+
+            <select
+              value={editing.status}
+              onChange={(e) =>
+                setEditing({
+                  ...editing,
+                  status: e.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-[#ddd5d0] bg-white px-3 py-3 text-sm outline-none focus:border-[#8f2039]"
+            >
+              <option>Active</option>
+              <option>Paused</option>
+            </select>
+          </div>
+
+          <button
+            onClick={saveEdit}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#8f2039] py-3 text-sm font-bold text-white hover:bg-[#731b30]"
+          >
+            <Save size={16} />
+            Save changes
+          </button>
+        </Modal>
+      )}
+
+      {/* GUIDE MODAL */}
+      {guide && (
+        <Modal onClose={() => setGuide(false)}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[#17233c] dark:text-white">
+              Automation guide
+            </h2>
+
+            <button
+              onClick={() => setGuide(false)}
+              className="rounded-lg p-2 hover:bg-[#f5eeee]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-4 text-sm leading-6 text-[#68748a]">
+            <p>
+              <b>1. Payment due:</b> Activate this workflow when you want
+              reminders around the due date.
+            </p>
+
+            <p>
+              <b>2. Payment overdue:</b> Use this workflow for customers
+              whose payment remains pending after the due date.
+            </p>
+
+            <p>
+              <b>3. Owner alert:</b> Keep this active when you want an
+              owner-side alert for risky or delayed payments.
+            </p>
+
+            <p>
+              Use <b>Edit</b> to change the workflow details and the
+              toggle to activate or pause it.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setGuide(false)}
+            className="mt-5 w-full rounded-xl bg-[#8f2039] py-3 text-sm font-bold text-white"
+          >
+            Got it
+          </button>
+        </Modal>
+      )}
     </div>
   );
 }
 
-/* ================= WORKFLOW CARD ================= */
+function WorkflowCard({
+  workflow,
+  toggle,
+  remove,
+  menu,
+  setMenu,
+  setEditing,
+}) {
+  const Icon =
+    icons[workflow.icon] || Zap;
 
-function WorkflowCard({ workflow, toggle, remove }) {
-  const Icon = workflow.icon;
-  const ActionIcon = workflow.actionIcon;
-  const colors = tone[workflow.tone] || tone.green;
+  const ActionIcon =
+    icons[workflow.actionIcon] || Bell;
+
+  const colors =
+    tone[workflow.tone] || tone.green;
 
   return (
-    <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-5 shadow-[0_4px_15px_rgba(73,48,35,.04)] transition hover:shadow-md dark:border-[#423238] dark:bg-[#2b2226]">
+    <section className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-5 shadow-sm transition hover:shadow-md dark:border-[#423238] dark:bg-[#2b2226]">
 
-      {/* HEADER */}
       <div className="flex items-start gap-4">
-
         <div
           className={`grid h-[54px] w-[54px] shrink-0 place-items-center rounded-[14px] ${colors.box}`}
         >
-          <Icon size={25} strokeWidth={1.8} />
+          <Icon size={25} />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -366,10 +759,8 @@ function WorkflowCard({ workflow, toggle, remove }) {
           </p>
         </div>
 
-        {/* TOGGLE */}
         <button
-          onClick={() => toggle(workflow.id)}
-          aria-label={`Toggle ${workflow.title}`}
+          onClick={() => toggle(workflow)}
           className={`relative h-7 w-[54px] shrink-0 rounded-full transition ${
             workflow.status === "Active"
               ? "bg-[#8f2039]"
@@ -385,14 +776,58 @@ function WorkflowCard({ workflow, toggle, remove }) {
           />
         </button>
 
-        <button className="hidden text-[#687181] sm:block">
-          <MoreVertical size={18} />
-        </button>
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenu(
+                menu === workflow.id
+                  ? null
+                  : workflow.id,
+              );
+            }}
+            className="rounded-lg p-1.5 text-[#687181] hover:bg-[#f5eeee] hover:text-[#8f2039]"
+          >
+            <MoreVertical size={18} />
+          </button>
+
+          {menu === workflow.id && (
+            <div
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className="absolute right-0 top-9 z-20 w-32 rounded-xl border border-[#e5ddd8] bg-white p-1.5 shadow-xl dark:border-[#493b40] dark:bg-[#30262b]"
+            >
+              <button
+                onClick={() => {
+                  setEditing({
+                    ...workflow,
+                  });
+                  setMenu(null);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs hover:bg-[#faf1f2]"
+              >
+                <Pencil size={13} />
+                Edit
+              </button>
+
+              <button
+                onClick={() =>
+                  remove(workflow.id)
+                }
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#b63e4d] hover:bg-[#fff0f1]"
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ACTION */}
-      <div className={`mt-4 flex items-center gap-3 rounded-[12px] px-4 py-3 ${colors.action}`}>
-
+      <div
+        className={`mt-4 flex items-center gap-3 rounded-[12px] px-4 py-3 ${colors.action}`}
+      >
         <span
           className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${colors.box}`}
         >
@@ -409,28 +844,75 @@ function WorkflowCard({ workflow, toggle, remove }) {
           </span>
         </div>
 
-        <button className="hidden items-center gap-1.5 rounded-lg border border-[#d9d7d4] bg-white px-3 py-2 text-[10px] font-semibold text-[#263047] shadow-sm transition hover:border-[#8f2039] hover:text-[#8f2039] sm:flex">
+        <button
+          onClick={() =>
+            setEditing({
+              ...workflow,
+            })
+          }
+          className="flex items-center gap-1.5 rounded-lg border border-[#d9d7d4] bg-white px-3 py-2 text-[10px] font-semibold text-[#263047] shadow-sm hover:border-[#8f2039] hover:text-[#8f2039]"
+        >
           <Pencil size={12} />
           Edit
-        </button>
-
-        <button
-          onClick={() => remove(workflow.id)}
-          className="grid h-8 w-8 place-items-center rounded-lg text-[#7c7475] transition hover:bg-[#f5e7e8] hover:text-[#b63e4d] sm:hidden"
-        >
-          <MoreVertical size={16} />
         </button>
       </div>
     </section>
   );
 }
 
-/* ================= SMALL COMPONENTS ================= */
+function Field({
+  label,
+  value,
+  onChange,
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-semibold text-[#68748a]">
+        {label}
+      </span>
 
-function Benefit({ icon: Icon, text }) {
+      <input
+        value={value || ""}
+        onChange={(e) =>
+          onChange(e.target.value)
+        }
+        className="w-full rounded-xl border border-[#ddd5d0] bg-white px-3 py-3 text-sm outline-none focus:border-[#8f2039]"
+      />
+    </label>
+  );
+}
+
+function Modal({
+  children,
+  onClose,
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+        className="w-full max-w-[480px] rounded-2xl bg-[#fffdfb] p-5 shadow-2xl dark:bg-[#2b2226]"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Benefit({
+  icon: Icon,
+  text,
+}) {
   return (
     <div className="flex items-center gap-2 text-[10px] font-medium text-[#3f4655] dark:text-[#d2c8cb]">
-      <Icon size={17} className="text-[#8f2039]" />
+      <Icon
+        size={17}
+        className="text-[#8f2039]"
+      />
       {text}
     </div>
   );
@@ -440,26 +922,19 @@ function StatBox({
   icon: Icon,
   value,
   label,
-  growth,
   tone: boxTone,
 }) {
   return (
     <div className="rounded-xl bg-[#fcfaf8] p-3 dark:bg-[#32272b]">
-      <div className="flex items-start justify-between gap-1">
-        <span
-          className={`grid h-9 w-9 place-items-center rounded-lg ${
-            boxTone === "green"
-              ? "bg-[#e8f5ed] text-[#31906a]"
-              : "bg-[#fbe9ee] text-[#8f2039]"
-          }`}
-        >
-          <Icon size={17} />
-        </span>
-
-        <span className="text-[9px] font-semibold text-[#24915e]">
-          {growth}
-        </span>
-      </div>
+      <span
+        className={`grid h-9 w-9 place-items-center rounded-lg ${
+          boxTone === "green"
+            ? "bg-[#e8f5ed] text-[#31906a]"
+            : "bg-[#fbe9ee] text-[#8f2039]"
+        }`}
+      >
+        <Icon size={17} />
+      </span>
 
       <strong className="mt-2 block text-[17px] font-bold text-[#17213a] dark:text-white">
         {value}
