@@ -23,100 +23,66 @@ import {
 export default function Collections() {
   const {
     user,
+    data = {},
     customers = [],
     reminders = [],
     reminder,
     notify,
   } = useApp();
 
-  const [selected, setSelected] =
-    useState(null);
-
-  const [tone, setTone] =
-    useState("Friendly");
-
-  const [message, setMessage] =
-    useState("");
-
-  const [notice, setNotice] =
-    useState("");
-
-  const [filter, setFilter] =
-    useState("Pending");
-
-  const [busy, setBusy] =
-    useState(false);
+  const [selected, setSelected] = useState(null);
+  const [tone, setTone] = useState("Friendly");
+  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState("Pending");
+  const [busy, setBusy] = useState(false);
 
   const items = useMemo(
     () =>
       [...customers]
         .filter(
-          (item) =>
-            Number(
-              item.outstanding || 0,
-            ) > 0,
+          (item) => Number(item.outstanding || 0) > 0,
         )
         .sort(
           (a, b) =>
-            Number(
-              b.outstanding || 0,
-            ) -
-            Number(
-              a.outstanding || 0,
-            ),
+            Number(b.outstanding || 0) -
+            Number(a.outstanding || 0),
         ),
     [customers],
   );
 
-  const activeCustomer =
-    selected || items[0] || null;
+  const activeCustomer = selected || items[0] || null;
 
-  const totalPending =
-    items.reduce(
-      (sum, item) =>
-        sum +
-        Number(
-          item.outstanding || 0,
-        ),
-      0,
-    );
+  const totalPending = items.reduce(
+    (sum, item) =>
+      sum + Number(item.outstanding || 0),
+    0,
+  );
 
-  const filteredReminders =
-    useMemo(() => {
-      if (filter === "All") {
-        return reminders;
-      }
+  const filteredReminders = useMemo(() => {
+    if (filter === "All") return reminders;
 
-      if (filter === "Completed") {
-        return reminders.filter(
-          (item) =>
-            item.status ===
-              "completed" ||
-            item.status === "sent",
-        );
-      }
-
+    if (filter === "Completed") {
       return reminders.filter(
         (item) =>
-          item.status ===
-            "queued" ||
-          item.status === "pending",
+          item.status === "completed" ||
+          item.status === "sent",
       );
-    }, [reminders, filter]);
+    }
+
+    return reminders.filter(
+      (item) =>
+        item.status === "queued" ||
+        item.status === "pending",
+    );
+  }, [reminders, filter]);
 
   const noticeMessage = (text) => {
     setNotice(text);
-
-    window.setTimeout(
-      () => setNotice(""),
-      3000,
-    );
+    window.setTimeout(() => setNotice(""), 3000);
   };
 
-  const getPriority = (
-    customer,
-    index,
-  ) => {
+  const getPriority = (customer, index) => {
     const overdue =
       customer?.overdue?.length || 0;
 
@@ -140,18 +106,10 @@ export default function Collections() {
     };
   };
 
-  const getTrustScore = (
-    customer,
-  ) => {
-    const value = Number(
-      customer?.score,
-    );
-
+  const getTrustScore = (customer) => {
+    const value = Number(customer?.score);
     return Number.isFinite(value)
-      ? Math.max(
-          0,
-          Math.min(100, value),
-        )
+      ? Math.max(0, Math.min(100, value))
       : 50;
   };
 
@@ -162,150 +120,220 @@ export default function Collections() {
       customer?.phoneNumber ||
       "";
 
-    phone = String(phone).replace(
-      /\D/g,
-      "",
-    );
+    phone = String(phone).replace(/\D/g, "");
+
+    if (phone.startsWith("91") && phone.length === 12) {
+      return phone;
+    }
 
     if (phone.length === 10) {
-      phone = `91${phone}`;
+      return `91${phone}`;
     }
 
     return phone;
   };
 
-  const messageFor = (
-    customer,
-    selectedTone,
-  ) => {
+  const messageFor = (customer, selectedTone) => {
     if (!customer) return "";
 
-    const amount = money(
-      customer.outstanding,
-    );
+    const amount = money(customer.outstanding);
 
     return {
       Friendly: `Hi ${customer.name} 😊 Just a friendly reminder that ${amount} is pending. Whenever convenient!`,
-
       Professional: `Hello ${customer.name}, this is a reminder regarding your pending payment of ${amount}. Please arrange the payment at your earliest convenience.`,
-
       Urgent: `Hi ${customer.name}, your pending payment of ${amount} requires immediate attention. Please complete the payment as soon as possible.`,
     }[selectedTone];
   };
 
   const currentMessage =
     message ||
-    messageFor(
-      activeCustomer,
-      tone,
-    );
+    messageFor(activeCustomer, tone);
 
-  const selectCustomer = (
-    customer,
-  ) => {
+  const selectCustomer = (customer) => {
     setSelected(customer);
     setTone("Friendly");
     setMessage(
-      messageFor(
-        customer,
-        "Friendly",
-      ),
+      messageFor(customer, "Friendly"),
     );
   };
 
   const changeTone = (value) => {
     setTone(value);
     setMessage(
-      messageFor(
-        activeCustomer,
-        value,
-      ),
+      messageFor(activeCustomer, value),
     );
   };
 
-  /* SEND CHANNEL */
-  const sendChannel = async (
-    channel,
-  ) => {
+  /* ================= SEND CHANNEL ================= */
+
+  const sendChannel = async (channel) => {
     if (!activeCustomer) return;
 
     setBusy(true);
 
     try {
-      const success =
-        await reminder(
-          activeCustomer,
-          channel,
-          currentMessage,
-        );
+      const success = await reminder(
+        activeCustomer,
+        channel,
+        currentMessage,
+      );
 
       if (!success) return;
 
-      const phone =
-        getPhone(
-          activeCustomer,
-        );
+      const phone = getPhone(activeCustomer);
+      const encoded = encodeURIComponent(
+        currentMessage,
+      );
 
-      const encoded =
-        encodeURIComponent(
-          currentMessage,
-        );
-
+      /* WHATSAPP */
       if (channel === "WhatsApp") {
-        const url = phone
-          ? `https://wa.me/${phone}?text=${encoded}`
-          : `https://wa.me/?text=${encoded}`;
+        if (!phone) {
+          notify?.("Customer phone number missing");
+          return;
+        }
 
-        window.open(
-          url,
-          "_blank",
-          "noopener,noreferrer",
+        const url =
+          `https://wa.me/${phone}?text=${encoded}`;
+
+        // Mobile browser -> WhatsApp app
+        // Desktop -> WhatsApp Web
+        window.location.href = url;
+
+        noticeMessage(
+          `WhatsApp opened for ${activeCustomer.name}`,
         );
+
+        return;
       }
 
+      /* SMS */
       if (channel === "SMS") {
+        if (!phone) {
+          notify?.("Customer phone number missing");
+          return;
+        }
+
         window.location.href =
-          `sms:${phone}?body=${encoded}`;
+          `sms:+${phone}?body=${encoded}`;
+
+        noticeMessage(
+          `SMS opened for ${activeCustomer.name}`,
+        );
+
+        return;
       }
 
+      /* EMAIL */
       if (channel === "Email") {
         const email =
           activeCustomer.email ||
+          activeCustomer.emailAddress ||
           "";
 
-        const subject =
-          encodeURIComponent(
-            "Payment Reminder - KhataOne",
-          );
+        if (!email) {
+          notify?.("Customer email missing");
+          return;
+        }
+
+        const subject = encodeURIComponent(
+          "Payment Reminder - KhataOne",
+        );
 
         window.location.href =
           `mailto:${email}?subject=${subject}&body=${encoded}`;
+
+        noticeMessage(
+          `Email opened for ${activeCustomer.name}`,
+        );
+
+        return;
       }
 
-      if (
-        channel === "Payment Link"
-      ) {
-        const url =
+      /* PAYMENT LINK */
+      if (channel === "Payment Link") {
+        const existingLink =
           activeCustomer.paymentLink ||
           activeCustomer.paymentUrl ||
-          `${window.location.origin}/payment/${activeCustomer.id}`;
+          "";
 
-        window.open(
-          url,
-          "_blank",
-          "noopener,noreferrer",
+        if (existingLink) {
+          window.location.href = existingLink;
+
+          noticeMessage(
+            `Payment link opened for ${activeCustomer.name}`,
+          );
+
+          return;
+        }
+
+        /*
+          UPI ID can come from Settings.
+          Supported names:
+          business.upiId
+          business.upi
+          preferences.upiId
+        */
+        const upiId =
+          data?.business?.upiId ||
+          data?.business?.upi ||
+          data?.preferences?.upiId ||
+          "";
+
+        if (!upiId) {
+          notify?.(
+            "Add your Business UPI ID in Settings first",
+          );
+          return;
+        }
+
+        const amount = Number(
+          activeCustomer.outstanding || 0,
         );
-      }
 
-      noticeMessage(
-        `${channel} opened for ${activeCustomer.name}`,
+        if (amount <= 0) {
+          notify?.("No pending amount");
+          return;
+        }
+
+        const upiUrl =
+          `upi://pay?pa=${encodeURIComponent(
+            upiId,
+          )}` +
+          `&pn=${encodeURIComponent(
+            data?.business?.name ||
+              "KhataOne Business",
+          )}` +
+          `&am=${encodeURIComponent(amount)}` +
+          `&cu=INR` +
+          `&tn=${encodeURIComponent(
+            `Payment from ${activeCustomer.name || "Customer"}`,
+          )}`;
+
+        // Mobile -> UPI app
+        window.location.href = upiUrl;
+
+        noticeMessage(
+          `Payment request opened for ${activeCustomer.name}`,
+        );
+
+        return;
+      }
+    } catch (error) {
+      console.error(
+        "Send channel error:",
+        error,
+      );
+
+      notify?.(
+        `Failed to open ${channel}`,
       );
     } finally {
       setBusy(false);
     }
   };
 
-  /* SEND ALL */
+  /* ================= SEND ALL ================= */
+
   const sendAll = async () => {
     if (!items.length) {
       noticeMessage(
@@ -317,19 +345,18 @@ export default function Collections() {
     setBusy(true);
 
     try {
-      const results =
-        await Promise.all(
-          items.map((customer) =>
-            reminder(
+      const results = await Promise.all(
+        items.map((customer) =>
+          reminder(
+            customer,
+            "WhatsApp",
+            messageFor(
               customer,
-              "WhatsApp",
-              messageFor(
-                customer,
-                "Friendly",
-              ),
+              "Friendly",
             ),
           ),
-        );
+        ),
+      );
 
       const count =
         results.filter(Boolean).length;
@@ -337,18 +364,18 @@ export default function Collections() {
       noticeMessage(
         `${count} reminders queued successfully`,
       );
+    } catch (error) {
+      console.error(error);
+      notify?.("Failed to send reminders");
     } finally {
       setBusy(false);
     }
   };
 
-  /* COMPLETE */
-  const markCompleted = async (
-    item,
-  ) => {
-    if (!user?.uid || !item?.id) {
-      return;
-    }
+  /* ================= COMPLETE ================= */
+
+  const markCompleted = async (item) => {
+    if (!user?.uid || !item?.id) return;
 
     try {
       await updateReminder(
@@ -360,25 +387,21 @@ export default function Collections() {
         },
       );
 
-      notify(
+      notify?.(
         "Reminder marked as completed",
       );
     } catch (error) {
       console.error(error);
-
-      notify(
+      notify?.(
         "Failed to update reminder",
       );
     }
   };
 
-  /* DELETE */
-  const removeReminder = async (
-    item,
-  ) => {
-    if (!user?.uid || !item?.id) {
-      return;
-    }
+  /* ================= DELETE ================= */
+
+  const removeReminder = async (item) => {
+    if (!user?.uid || !item?.id) return;
 
     try {
       await deleteReminder(
@@ -386,13 +409,10 @@ export default function Collections() {
         item.id,
       );
 
-      notify(
-        "Reminder deleted",
-      );
+      notify?.("Reminder deleted");
     } catch (error) {
       console.error(error);
-
-      notify(
+      notify?.(
         "Failed to delete reminder",
       );
     }
@@ -404,7 +424,6 @@ export default function Collections() {
 
         {/* HEADER */}
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
           <div>
             <h1 className="text-[28px] font-bold tracking-tight text-[#302d2c]">
               Collections
@@ -423,7 +442,6 @@ export default function Collections() {
             <Send size={15} />
             Send all reminders
           </button>
-
         </header>
 
         {/* NOTICE */}
@@ -438,9 +456,7 @@ export default function Collections() {
 
           {/* QUEUE */}
           <section className="overflow-hidden rounded-[20px] border border-[#ddd5ca] bg-[#fbfaf7] shadow-sm">
-
             <div className="flex items-center justify-between border-b border-[#ddd5ca] px-5 py-4">
-
               <div>
                 <h2 className="text-[17px] font-bold text-[#383331]">
                   Recovery queue
@@ -454,80 +470,71 @@ export default function Collections() {
               <span className="rounded-full bg-[#f5e8e9] px-3 py-1 text-[9px] font-bold text-[#8f2039]">
                 {items.length} pending
               </span>
-
             </div>
 
-            {items.map(
-              (customer, index) => {
-                const priority =
-                  getPriority(
-                    customer,
-                    index,
-                  );
-
-                return (
-                  <button
-                    key={customer.id}
-                    onClick={() =>
-                      selectCustomer(
-                        customer,
-                      )
-                    }
-                    className={`flex w-full items-center gap-3 border-b border-[#ddd5ca] px-5 py-4 text-left transition hover:bg-[#f5f0e8] ${
-                      activeCustomer?.id ===
-                      customer.id
-                        ? "bg-[#f5efe6]"
-                        : ""
-                    }`}
-                  >
-                    <span
-                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${priority.color}`}
-                    />
-
-                    <div className="min-w-0 flex-1">
-
-                      <h3 className="truncate text-sm font-bold text-[#3a3532]">
-                        {customer.name}
-                      </h3>
-
-                      <p className="mt-1 text-[10px] text-[#746d68]">
-                        {priority.label}
-                        {" · "}
-                        Trust{" "}
-                        {getTrustScore(
-                          customer,
-                        )}
-                        /100
-                      </p>
-
-                    </div>
-
-                    <strong className="text-sm text-[#383331]">
-                      {money(
-                        customer.outstanding,
-                      )}
-                    </strong>
-
-                    <ArrowRight
-                      size={17}
-                      className="shrink-0 text-[#766f69]"
-                    />
-                  </button>
+            {items.map((customer, index) => {
+              const priority =
+                getPriority(
+                  customer,
+                  index,
                 );
-              },
-            )}
+
+              return (
+                <button
+                  key={customer.id}
+                  onClick={() =>
+                    selectCustomer(customer)
+                  }
+                  className={`flex w-full items-center gap-3 border-b border-[#ddd5ca] px-5 py-4 text-left transition hover:bg-[#f5f0e8] ${
+                    activeCustomer?.id ===
+                    customer.id
+                      ? "bg-[#f5efe6]"
+                      : ""
+                  }`}
+                >
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${priority.color}`}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-bold text-[#3a3532]">
+                      {customer.name}
+                    </h3>
+
+                    <p className="mt-1 text-[10px] text-[#746d68]">
+                      {priority.label}
+                      {" · "}
+                      Trust{" "}
+                      {getTrustScore(
+                        customer,
+                      )}
+                      /100
+                    </p>
+                  </div>
+
+                  <strong className="text-sm text-[#383331]">
+                    {money(
+                      customer.outstanding,
+                    )}
+                  </strong>
+
+                  <ArrowRight
+                    size={17}
+                    className="shrink-0 text-[#766f69]"
+                  />
+                </button>
+              );
+            })}
 
             {!items.length && (
               <div className="px-5 py-14 text-center text-xs text-[#8b837b]">
                 Great! You have no pending payments.
               </div>
             )}
-
           </section>
 
           {/* SMART REMINDER */}
           <section className="rounded-[20px] border border-[#ddd5ca] bg-[#fbfaf7] p-5 shadow-sm">
-
             <h2 className="text-[17px] font-bold text-[#383331]">
               Smart reminder
             </h2>
@@ -562,7 +569,6 @@ export default function Collections() {
 
                 {/* TONE */}
                 <div className="mt-3 flex rounded-xl bg-[#eeeae4] p-1">
-
                   {[
                     "Friendly",
                     "Professional",
@@ -571,9 +577,7 @@ export default function Collections() {
                     <button
                       key={item}
                       onClick={() =>
-                        changeTone(
-                          item,
-                        )
+                        changeTone(item)
                       }
                       className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-semibold ${
                         tone === item
@@ -584,12 +588,10 @@ export default function Collections() {
                       {item}
                     </button>
                   ))}
-
                 </div>
 
                 {/* CHANNELS */}
                 <div className="mt-3 grid grid-cols-2 gap-2">
-
                   <ChannelButton
                     icon={MessageCircle}
                     label="WhatsApp"
@@ -605,9 +607,7 @@ export default function Collections() {
                     icon={Smartphone}
                     label="SMS"
                     onClick={() =>
-                      sendChannel(
-                        "SMS",
-                      )
+                      sendChannel("SMS")
                     }
                     disabled={busy}
                   />
@@ -633,41 +633,31 @@ export default function Collections() {
                     }
                     disabled={busy}
                   />
-
                 </div>
 
                 <button
-                  onClick={() => {
-                    const url =
-                      `${window.location.origin}/customer/${activeCustomer.id}`;
-
-                    window.open(
-                      url,
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                  }}
+                  onClick={() =>
+                    notify?.(
+                      "Customer payment portal will be available after portal setup.",
+                    )
+                  }
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#f0ebe3] px-4 py-3 text-xs font-bold text-[#493e38] hover:bg-[#e7ded2]"
                 >
                   Open customer payment portal
                   <ExternalLink size={14} />
                 </button>
-
               </>
             ) : (
               <div className="mt-6 rounded-xl bg-[#f4f1eb] p-6 text-center text-xs text-[#827a75]">
                 Select a customer from the recovery queue.
               </div>
             )}
-
           </section>
         </div>
 
         {/* REMINDER HISTORY */}
         <section className="mt-5 overflow-hidden rounded-[20px] border border-[#ddd5ca] bg-[#fbfaf7] shadow-sm">
-
           <div className="flex flex-col gap-3 border-b border-[#ddd5ca] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
               <h2 className="text-[17px] font-bold text-[#383331]">
                 Reminder history
@@ -679,7 +669,6 @@ export default function Collections() {
             </div>
 
             <div className="flex rounded-lg bg-[#eeeae4] p-1">
-
               {[
                 "Pending",
                 "Completed",
@@ -699,19 +688,15 @@ export default function Collections() {
                   {item}
                 </button>
               ))}
-
             </div>
-
           </div>
 
-          {filteredReminders.length ===
-          0 ? (
+          {filteredReminders.length === 0 ? (
             <div className="px-5 py-12 text-center text-xs text-[#8b837b]">
               No reminders found.
             </div>
           ) : (
             <div className="divide-y divide-[#e5ddd5]">
-
               {filteredReminders.map(
                 (item) => {
                   const completed =
@@ -724,7 +709,6 @@ export default function Collections() {
                       key={item.id}
                       className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center"
                     >
-
                       <div
                         className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
                           completed
@@ -744,9 +728,7 @@ export default function Collections() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-
                         <div className="flex flex-wrap items-center gap-2">
-
                           <strong className="text-xs font-bold text-[#393337]">
                             {item.customerName ||
                               "Customer"}
@@ -767,13 +749,10 @@ export default function Collections() {
                             {item.status ||
                               "queued"}
                           </span>
-
                         </div>
 
                         <p className="mt-1 text-[10px] text-[#827a75]">
-                          {money(
-                            item.amount,
-                          )}
+                          {money(item.amount)}
 
                           {item.createdAt?.toDate
                             ? ` · ${item.createdAt
@@ -783,11 +762,9 @@ export default function Collections() {
                                 )}`
                             : ""}
                         </p>
-
                       </div>
 
                       <div className="flex gap-2">
-
                         {!completed && (
                           <button
                             onClick={() =>
@@ -813,19 +790,14 @@ export default function Collections() {
                             size={14}
                           />
                         </button>
-
                       </div>
-
                     </div>
                   );
                 },
               )}
-
             </div>
           )}
-
         </section>
-
       </div>
     </div>
   );

@@ -124,8 +124,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!user?.uid) return;
 
-    setLoadedCustomersUid(null);
-
     return subscribeToCustomers(
       user.uid,
       (firebaseCustomers) => {
@@ -143,8 +141,6 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (!user?.uid) return;
-
-    setLoadedTransactionsUid(null);
 
     return subscribeToTransactions(
       user.uid,
@@ -164,8 +160,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!user?.uid) return;
 
-    setLoadedRemindersUid(null);
-
     return subscribeToReminders(
       user.uid,
       (firebaseReminders) => {
@@ -178,10 +172,7 @@ export function AppProvider({ children }) {
   /* ================= NOTIFICATIONS REALTIME ================= */
 
   useEffect(() => {
-    if (!user?.uid) {
-      setNotifications([]);
-      return;
-    }
+    if (!user?.uid) return;
 
     return subscribeToNotifications(
       user.uid,
@@ -214,6 +205,10 @@ export function AppProvider({ children }) {
           },
     [data, user, notifications],
   );
+
+  const visibleNotifications = user
+    ? notifications
+    : [];
 
   const visibleReminders = user
     ? reminders
@@ -598,7 +593,7 @@ export function AppProvider({ children }) {
         currency,
 
         reminders: visibleReminders,
-        notifications,
+        notifications: visibleNotifications,
 
         range,
         setRange,

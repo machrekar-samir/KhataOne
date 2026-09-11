@@ -71,6 +71,7 @@ function SettingsContent({ data, notify }) {
     name: data?.business?.name || "",
     type: data?.business?.type || "Retail Shop",
     phone: data?.business?.phone || "",
+    upiId: data?.business?.upiId || "",
     address: data?.business?.address || "",
     logo: data?.business?.logo || "",
   }));
@@ -515,6 +516,24 @@ function SettingsContent({ data, notify }) {
                 }
                 placeholder="+91 98765 43210"
                 className={inputClass}
+              />
+            </Field>
+
+            <Field
+              className="md:col-span-3"
+              label="Business UPI ID"
+            >
+              <input
+                value={business.upiId}
+                onChange={(e) =>
+                  setBusiness({
+                    ...business,
+                    upiId: e.target.value.trim(),
+                  })
+                }
+                placeholder="yourshop@upi"
+                className={inputClass}
+                autoComplete="off"
               />
             </Field>
 

@@ -19,7 +19,6 @@ import {
   Loader2,
   CheckCircle2,
   FileText,
-  Volume2,
   Square,
 } from "lucide-react";
 
@@ -56,8 +55,14 @@ export default function Transactions() {
   const recognitionRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const customers = data?.customers || [];
-  const transactions = data?.transactions || [];
+  const customers = useMemo(
+    () => data?.customers || [],
+    [data?.customers],
+  );
+  const transactions = useMemo(
+    () => data?.transactions || [],
+    [data?.transactions],
+  );
 
   const getCustomerName = useCallback(
     (id) =>

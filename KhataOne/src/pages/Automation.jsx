@@ -68,22 +68,22 @@ export default function Automation() {
   const [reminders, setReminders] = useState([]);
   const [transactions, setTransactions] = useState([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loadedWorkflowsUid, setLoadedWorkflowsUid] =
+    useState(null);
   const [period, setPeriod] = useState("month");
 
   const [editing, setEditing] = useState(null);
   const [menu, setMenu] = useState(null);
   const [guide, setGuide] = useState(false);
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setWorkflows([]);
-      setReminders([]);
-      setTransactions([]);
-      return;
-    }
+  const visibleWorkflows = user?.uid
+    ? workflows
+    : [];
+  const loading = Boolean(user?.uid) &&
+    loadedWorkflowsUid !== user.uid;
 
-    setLoading(true);
+  useEffect(() => {
+    if (!user?.uid) return;
 
     initializeAutomations(user.uid).catch(
       (error) =>
@@ -98,7 +98,7 @@ export default function Automation() {
         user.uid,
         (items) => {
           setWorkflows(items);
-          setLoading(false);
+          setLoadedWorkflowsUid(user.uid);
         },
       );
 
@@ -123,6 +123,12 @@ export default function Automation() {
 
   const stats = useMemo(() => {
     const now = new Date();
+    const currentReminders = user?.uid
+      ? reminders
+      : [];
+    const currentTransactions = user?.uid
+      ? transactions
+      : [];
 
     const getDate = (value) => {
       if (!value) return null;
@@ -191,12 +197,12 @@ export default function Automation() {
     };
 
     const monthReminders =
-      reminders.filter((item) =>
+      currentReminders.filter((item) =>
         inPeriod(item.createdAt),
       );
 
     const payments =
-      transactions.filter(
+      currentTransactions.filter(
         (item) =>
           String(item.type || "").toLowerCase() ===
             "payment" &&
@@ -239,6 +245,7 @@ export default function Automation() {
   }, [
     reminders,
     transactions,
+    user,
     period,
   ]);
 
@@ -391,7 +398,7 @@ export default function Automation() {
             <div className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-8 text-center text-sm text-[#777]">
               Loading automations...
             </div>
-          ) : workflows.length === 0 ? (
+          ) : visibleWorkflows.length === 0 ? (
             <div className="rounded-[16px] border border-[#e5ddd8] bg-[#fffdfb] p-8 text-center dark:bg-[#2b2226]">
               <p className="text-sm text-[#68748a]">
                 No automations yet.
@@ -405,7 +412,7 @@ export default function Automation() {
               </button>
             </div>
           ) : (
-            workflows.map((workflow) => (
+            visibleWorkflows.map((workflow) => (
               <WorkflowCard
                 key={workflow.id}
                 workflow={workflow}
