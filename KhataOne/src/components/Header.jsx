@@ -2,19 +2,36 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { useApp } from "../context/useApp.js";
-import { Bell, Moon, Search, Sun, Menu, X, UserRound } from "lucide-react";
+import {
+  Bell,
+  Moon,
+  Search,
+  Sun,
+  Menu,
+  X,
+  UserRound,
+} from "lucide-react";
 
 export default function Header({ onMenu }) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { customers = [] } = useApp();
+  const {
+    customers = [],
+    notifications = [],
+  } = useApp();
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const searchRef = useRef(null);
 
+  const unreadCount = notifications.filter(
+    (item) => !item.read,
+  ).length;
+
   const results = useMemo(() => {
-    if (!query.trim()) return customers.slice(0, 4);
+    if (!query.trim()) {
+      return customers.slice(0, 4);
+    }
 
     return customers
       .filter((customer) =>
@@ -27,18 +44,31 @@ export default function Header({ onMenu }) {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target)
+      ) {
         setOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside,
+    );
 
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
   }, []);
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && query.trim()) {
+    if (
+      e.key === "Enter" &&
+      query.trim()
+    ) {
       navigate("/customers");
       setOpen(false);
     }
@@ -50,7 +80,8 @@ export default function Header({ onMenu }) {
 
   return (
     <header className="relative z-40 flex h-[60px] items-center gap-2 border-b border-[#ebe7e3] bg-white/90 px-3 backdrop-blur transition-colors duration-300 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10 dark:border-[#423238] dark:bg-[#281f23]/90">
-      {/* Mobile Menu */}
+
+      {/* MOBILE MENU */}
       <button
         onClick={onMenu}
         aria-label="Open navigation"
@@ -59,8 +90,11 @@ export default function Header({ onMenu }) {
         <Menu size={19} />
       </button>
 
-      {/* Search */}
-      <div ref={searchRef} className="relative min-w-0 flex-1 lg:max-w-[440px]">
+      {/* SEARCH */}
+      <div
+        ref={searchRef}
+        className="relative min-w-0 flex-1 lg:max-w-[440px]"
+      >
         <div
           className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-white px-3 transition-all dark:bg-[#2d2428] ${
             open
@@ -102,7 +136,7 @@ export default function Header({ onMenu }) {
           </kbd>
         </div>
 
-        {/* Search Dropdown */}
+        {/* SEARCH DROPDOWN */}
         {open && (
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-xl border border-[#ebe7e3] bg-white shadow-xl dark:border-[#423238] dark:bg-[#2d2428]">
             {results.length > 0 ? (
@@ -111,31 +145,40 @@ export default function Header({ onMenu }) {
                   Customers
                 </div>
 
-                {results.map((customer, index) => (
-                  <button
-                    key={customer.id || index}
-                    onClick={() => {
-                      navigate(`/customers/${customer.id}`);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                    className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-[#f8f4f1] dark:hover:bg-[#382c31]"
-                  >
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f4e5e7] text-[#8f2039] dark:bg-[#4a2932]">
-                      <UserRound size={14} />
-                    </span>
-
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold text-[#332d2f] dark:text-white">
-                        {customer.name || "Customer"}
+                {results.map(
+                  (customer, index) => (
+                    <button
+                      key={
+                        customer.id ||
+                        index
+                      }
+                      onClick={() => {
+                        navigate(
+                          `/customers/${customer.id}`,
+                        );
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-[#f8f4f1] dark:hover:bg-[#382c31]"
+                    >
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f4e5e7] text-[#8f2039] dark:bg-[#4a2932]">
+                        <UserRound size={14} />
                       </span>
 
-                      <span className="block truncate text-[10px] text-[#8b8383]">
-                        {customer.phone || "No phone number"}
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-semibold text-[#332d2f] dark:text-white">
+                          {customer.name ||
+                            "Customer"}
+                        </span>
+
+                        <span className="block truncate text-[10px] text-[#8b8383]">
+                          {customer.phone ||
+                            "No phone number"}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  ),
+                )}
 
                 <button
                   onClick={() => {
@@ -156,32 +199,46 @@ export default function Header({ onMenu }) {
         )}
       </div>
 
-      {/* Right Actions */}
+      {/* RIGHT ACTIONS */}
       <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-        {/* Theme */}
+
+        {/* THEME */}
         <button
           className="relative grid size-7 place-items-center text-[#8b8383] transition hover:text-[#8f2039] dark:text-[#bbaeb1]"
           aria-label="Toggle theme"
           onClick={toggleTheme}
         >
-          {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+          {theme === "dark" ? (
+            <Sun size={17} />
+          ) : (
+            <Moon size={17} />
+          )}
         </button>
 
-        {/* Notification */}
+        {/* NOTIFICATIONS */}
         <button
           className="relative grid size-7 place-items-center text-[#8b8383] transition hover:text-[#8f2039] dark:text-[#bbaeb1]"
           aria-label="Notifications"
-          onClick={() => navigate("/notifications")}
+          onClick={() =>
+            navigate("/notifications")
+          }
         >
           <Bell size={18} />
 
-          <span className="absolute right-0 top-0 grid min-w-[14px] h-[14px] place-items-center rounded-full bg-[#8f2039] px-1 text-[8px] font-bold text-white">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 grid min-w-[14px] h-[14px] place-items-center rounded-full bg-[#8f2039] px-1 text-[8px] font-bold text-white">
+              {unreadCount > 99
+                ? "99+"
+                : unreadCount}
+            </span>
+          )}
         </button>
 
+        {/* PROFILE */}
         <button
-          onClick={() => navigate("/settings")}
+          onClick={() =>
+            navigate("/settings")
+          }
           className="grid size-8 shrink-0 place-items-center rounded-full bg-[#7b2335] text-[10px] font-bold text-white sm:size-9"
         >
           SM

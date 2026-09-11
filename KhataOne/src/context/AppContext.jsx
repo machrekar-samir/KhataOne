@@ -36,6 +36,11 @@ import {
   subscribeToReminders,
 } from "../services/reminderService.js";
 
+import {
+  addNotification,
+  subscribeToNotifications,
+} from "../services/notificationService.js";
+
 import { initializeWorkspace } from "../services/workspaceService.js";
 import { auth } from "../config/firebase.js";
 import { AppContext } from "./appContext.js";
@@ -45,7 +50,9 @@ export function AppProvider({ children }) {
   const [range, setRange] = useState("month");
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
+
   const [reminders, setReminders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const [loadedCustomersUid, setLoadedCustomersUid] =
     useState(null);
@@ -71,6 +78,7 @@ export function AppProvider({ children }) {
           }));
 
           setReminders([]);
+          setNotifications([]);
 
           setLoadedCustomersUid(null);
           setLoadedTransactionsUid(null);
@@ -123,10 +131,13 @@ export function AppProvider({ children }) {
       (firebaseTransactions) => {
         setData((current) => ({
           ...current,
-          transactions: firebaseTransactions,
+          transactions:
+            firebaseTransactions,
         }));
 
-        setLoadedTransactionsUid(user.uid);
+        setLoadedTransactionsUid(
+          user.uid,
+        );
       },
     );
   }, [user?.uid]);
@@ -141,7 +152,27 @@ export function AppProvider({ children }) {
       user.uid,
       (firebaseReminders) => {
         setReminders(firebaseReminders);
-        setLoadedRemindersUid(user.uid);
+
+        setLoadedRemindersUid(
+          user.uid,
+        );
+      },
+    );
+  }, [user?.uid]);
+
+  /* NOTIFICATIONS REALTIME */
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotifications([]);
+      return;
+    }
+
+    return subscribeToNotifications(
+      user.uid,
+      (firebaseNotifications) => {
+        setNotifications(
+          firebaseNotifications,
+        );
       },
     );
   }, [user?.uid]);
@@ -154,13 +185,17 @@ export function AppProvider({ children }) {
   const visibleData = useMemo(
     () =>
       user
-        ? data
+        ? {
+            ...data,
+            notifications,
+          }
         : {
             ...data,
             customers: [],
             transactions: [],
+            notifications: [],
           },
-    [data, user],
+    [data, user, notifications],
   );
 
   const visibleReminders = user
@@ -208,7 +243,7 @@ export function AppProvider({ children }) {
     );
   };
 
-  /* ACTIVITY */
+  /* ACTIVITY + FIREBASE NOTIFICATION */
   const activity = (
     title,
     detail = "",
@@ -225,6 +260,20 @@ export function AppProvider({ children }) {
         ...(current.activities || []),
       ].slice(0, 30),
     }));
+
+    if (user?.uid) {
+      addNotification(user.uid, {
+        text: detail
+          ? `${title} — ${detail}`
+          : title,
+        type: "activity",
+      }).catch((error) => {
+        console.error(
+          "Notification create error:",
+          error,
+        );
+      });
+    }
   };
 
   /* SAVE CUSTOMER */
@@ -235,7 +284,9 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(value?.id);
+      const exists = Boolean(
+        value?.id,
+      );
 
       if (exists) {
         await updateCustomer(
@@ -269,7 +320,10 @@ export function AppProvider({ children }) {
         error,
       );
 
-      notify("Failed to save customer");
+      notify(
+        "Failed to save customer",
+      );
+
       return false;
     }
   };
@@ -282,7 +336,9 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(value?.id);
+      const exists = Boolean(
+        value?.id,
+      );
 
       if (exists) {
         await updateTransaction(
@@ -296,15 +352,24 @@ export function AppProvider({ children }) {
         );
       }
 
+      const isPayment =
+        String(
+          value?.type || "",
+        ).toLowerCase() ===
+        "payment";
+
       activity(
-        value?.type === "payment"
+        isPayment
           ? "Payment received"
           : exists
             ? "Transaction updated"
             : "Transaction created",
         money(
-          Number(value?.amount || 0),
-          data.business?.currency || "₹",
+          Number(
+            value?.amount || 0,
+          ),
+          data.business?.currency ||
+            "₹",
         ),
       );
 
@@ -330,7 +395,9 @@ export function AppProvider({ children }) {
   };
 
   /* DELETE CUSTOMER */
-  const deleteCustomer = async (id) => {
+  const deleteCustomer = async (
+    id,
+  ) => {
     if (!user?.uid) {
       notify("Please login first");
       return false;
@@ -353,7 +420,9 @@ export function AppProvider({ children }) {
         item?.name || "",
       );
 
-      notify("Customer deleted");
+      notify(
+        "Customer deleted",
+      );
 
       return true;
     } catch (error) {
@@ -387,7 +456,9 @@ export function AppProvider({ children }) {
         "Transaction deleted",
       );
 
-      notify("Transaction deleted");
+      notify(
+        "Transaction deleted",
+      );
 
       return true;
     } catch (error) {
@@ -416,12 +487,16 @@ export function AppProvider({ children }) {
     }
 
     if (!customer?.id) {
-      notify("Customer ID missing");
+      notify(
+        "Customer ID missing",
+      );
       return false;
     }
 
     if (
-      Number(customer.outstanding || 0) <= 0
+      Number(
+        customer.outstanding || 0,
+      ) <= 0
     ) {
       notify(
         "No pending amount for this customer",
@@ -467,10 +542,14 @@ export function AppProvider({ children }) {
     <AppContext.Provider
       value={{
         data: visibleData,
+
         customers,
         totals,
 
-        reminders: visibleReminders,
+        reminders:
+          visibleReminders,
+
+        notifications,
 
         range,
         setRange,
@@ -480,15 +559,18 @@ export function AppProvider({ children }) {
 
         loadingCustomers:
           Boolean(user?.uid) &&
-          loadedCustomersUid !== user.uid,
+          loadedCustomersUid !==
+            user.uid,
 
         loadingTransactions:
           Boolean(user?.uid) &&
-          loadedTransactionsUid !== user.uid,
+          loadedTransactionsUid !==
+            user.uid,
 
         loadingReminders:
           Boolean(user?.uid) &&
-          loadedRemindersUid !== user.uid,
+          loadedRemindersUid !==
+            user.uid,
 
         update,
         notify,
