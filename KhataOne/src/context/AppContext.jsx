@@ -99,10 +99,8 @@ export function AppProvider({ children }) {
         const uid = currentUser.uid;
 
         try {
-          /* CREATE WORKSPACE STRUCTURE */
           await initializeWorkspace(uid);
 
-          /* LOAD SETTINGS */
           const settings = await getSettings(uid);
 
           setData((current) => ({
@@ -188,9 +186,7 @@ export function AppProvider({ children }) {
     return subscribeToNotifications(
       user.uid,
       (firebaseNotifications) => {
-        setNotifications(
-          firebaseNotifications,
-        );
+        setNotifications(firebaseNotifications);
       },
     );
   }, [user?.uid]);
@@ -247,6 +243,12 @@ export function AppProvider({ children }) {
       ),
     [visibleData, range],
   );
+
+  /* ================= CURRENCY ================= */
+
+  const currency =
+    data?.preferences?.currency ||
+    "INR (₹)";
 
   /* ================= UPDATE ================= */
 
@@ -410,8 +412,7 @@ export function AppProvider({ children }) {
       const isPayment =
         String(
           value?.type || "",
-        ).toLowerCase() ===
-        "payment";
+        ).toLowerCase() === "payment";
 
       activity(
         isPayment
@@ -423,8 +424,7 @@ export function AppProvider({ children }) {
           Number(
             value?.amount || 0,
           ),
-          data?.preferences?.currency ||
-            "₹",
+          currency,
         ),
       );
 
@@ -441,10 +441,7 @@ export function AppProvider({ children }) {
         error,
       );
 
-      notify(
-        "Failed to save transaction",
-      );
-
+      notify("Failed to save transaction");
       return false;
     }
   };
@@ -597,6 +594,8 @@ export function AppProvider({ children }) {
 
         customers,
         totals,
+
+        currency,
 
         reminders: visibleReminders,
         notifications,

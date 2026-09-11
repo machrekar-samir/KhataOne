@@ -1,49 +1,97 @@
 import { dateKey } from "./dateHelpers.js";
 
-export const money = (value, currency = "₹") =>
-  `${currency}${Math.round(Number(value) || 0).toLocaleString("en-IN")}`;
+const currencySymbols = {
+  "INR (₹)": "₹",
+  "USD ($)": "$",
+  "EUR (€)": "€",
+};
 
-const amount = (value) => Math.max(0, Number(value) || 0);
+export const money = (
+  value,
+  currency = "INR (₹)",
+) => {
+  const symbol =
+    currencySymbols[currency] ||
+    currency ||
+    "₹";
+
+  return `${symbol}${Math.round(
+    Number(value) || 0,
+  ).toLocaleString("en-IN")}`;
+};
+
+const amount = (value) =>
+  Math.max(0, Number(value) || 0);
 
 const getDate = (value) => {
   if (!value) return null;
-  if (typeof value?.toDate === "function") return value.toDate();
-  if (value?.seconds) return new Date(value.seconds * 1000);
+
+  if (typeof value?.toDate === "function") {
+    return value.toDate();
+  }
+
+  if (value?.seconds) {
+    return new Date(value.seconds * 1000);
+  }
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
 };
 
-const isCredit = (item) => String(item?.type || "").toLowerCase() === "credit";
-const isPayment = (item) =>
-  String(item?.type || "").toLowerCase() === "payment";
+const isCredit = (item) =>
+  String(item?.type || "").toLowerCase() ===
+  "credit";
 
-export function customerStats(customer, transactions = []) {
+const isPayment = (item) =>
+  String(item?.type || "").toLowerCase() ===
+  "payment";
+
+export function customerStats(
+  customer,
+  transactions = [],
+) {
   const own = transactions
-    .filter((item) => item?.customerId === customer?.id)
+    .filter(
+      (item) =>
+        item?.customerId === customer?.id,
+    )
     .sort((a, b) => {
-      const da = getDate(a.date)?.getTime() || 0;
-      const db = getDate(b.date)?.getTime() || 0;
+      const da =
+        getDate(a.date)?.getTime() || 0;
+      const db =
+        getDate(b.date)?.getTime() || 0;
+
       return da - db;
     });
 
   const credit = own
     .filter(isCredit)
-    .reduce((sum, item) => sum + amount(item.amount), 0);
+    .reduce(
+      (sum, item) =>
+        sum + amount(item.amount),
+      0,
+    );
 
   const payments = own
     .filter(isPayment)
-    .reduce((sum, item) => sum + amount(item.amount), 0);
+    .reduce(
+      (sum, item) =>
+        sum + amount(item.amount),
+      0,
+    );
 
-  const openingBalance = amount(customer?.openingBalance);
+  const openingBalance = amount(
+    customer?.openingBalance,
+  );
 
   const outstanding = Math.max(
     0,
     openingBalance + credit - payments,
   );
 
-  /* Allocate payments against old credits so paid credits
-     don't remain marked as overdue. */
   let remainingPayments = payments;
 
   const creditRows = own
@@ -54,7 +102,11 @@ export function customerStats(customer, transactions = []) {
     }));
 
   creditRows.forEach((item) => {
-    const used = Math.min(item.remaining, remainingPayments);
+    const used = Math.min(
+      item.remaining,
+      remainingPayments,
+    );
+
     item.remaining -= used;
     remainingPayments -= used;
   });
@@ -69,27 +121,39 @@ export function customerStats(customer, transactions = []) {
   );
 
   const overdueAmount = overdue.reduce(
-    (sum, item) => sum + item.remaining,
+    (sum, item) =>
+      sum + item.remaining,
     0,
   );
 
-  const creditLimit = amount(customer?.creditLimit);
+  const creditLimit = amount(
+    customer?.creditLimit,
+  );
 
   const overduePenalty =
     credit > 0
-      ? Math.min(35, (overdueAmount / credit) * 35)
+      ? Math.min(
+          35,
+          (overdueAmount / credit) * 35,
+        )
       : 0;
 
   const utilizationPenalty =
     creditLimit > 0
-      ? Math.min(25, (outstanding / creditLimit) * 25)
+      ? Math.min(
+          25,
+          (outstanding / creditLimit) * 25,
+        )
       : outstanding > 0
         ? 10
         : 0;
 
   const paymentRate =
     credit > 0
-      ? Math.min(100, (payments / credit) * 100)
+      ? Math.min(
+          100,
+          (payments / credit) * 100,
+        )
       : 100;
 
   const score = Math.max(
@@ -129,7 +193,10 @@ export function customerStats(customer, transactions = []) {
   };
 }
 
-export function metrics(transactions = [], range = "month") {
+export function metrics(
+  transactions = [],
+  range = "month",
+) {
   const now = new Date();
   const start = new Date(now);
 
@@ -138,7 +205,10 @@ export function metrics(transactions = [], range = "month") {
   } else if (range === "week") {
     start.setDate(now.getDate() - 7);
   } else if (range === "last") {
-    start.setMonth(now.getMonth() - 1, 1);
+    start.setMonth(
+      now.getMonth() - 1,
+      1,
+    );
     start.setHours(0, 0, 0, 0);
   } else {
     start.setDate(1);
@@ -147,20 +217,36 @@ export function metrics(transactions = [], range = "month") {
 
   const credits = transactions
     .filter(isCredit)
-    .reduce((sum, item) => sum + amount(item.amount), 0);
+    .reduce(
+      (sum, item) =>
+        sum + amount(item.amount),
+      0,
+    );
 
   const payments = transactions
     .filter(isPayment)
-    .reduce((sum, item) => sum + amount(item.amount), 0);
+    .reduce(
+      (sum, item) =>
+        sum + amount(item.amount),
+      0,
+    );
 
   const collected = transactions
     .filter((item) => {
       const date = getDate(item.date);
-      return isPayment(item) && date && date >= start;
-    })
-    .reduce((sum, item) => sum + amount(item.amount), 0);
 
-  /* Calculate remaining balance on each credit transaction. */
+      return (
+        isPayment(item) &&
+        date &&
+        date >= start
+      );
+    })
+    .reduce(
+      (sum, item) =>
+        sum + amount(item.amount),
+      0,
+    );
+
   let remainingPayments = payments;
 
   const creditRows = transactions
@@ -176,7 +262,11 @@ export function metrics(transactions = [], range = "month") {
     );
 
   creditRows.forEach((item) => {
-    const used = Math.min(item.remaining, remainingPayments);
+    const used = Math.min(
+      item.remaining,
+      remainingPayments,
+    );
+
     item.remaining -= used;
     remainingPayments -= used;
   });
@@ -188,27 +278,38 @@ export function metrics(transactions = [], range = "month") {
         item.dueDate &&
         String(item.dueDate) < dateKey(),
     )
-    .reduce((sum, item) => sum + item.remaining, 0);
+    .reduce(
+      (sum, item) =>
+        sum + item.remaining,
+      0,
+    );
 
-  const receivable = Math.max(0, credits - payments);
+  const receivable = Math.max(
+    0,
+    credits - payments,
+  );
 
   const collectionRate =
     credits > 0
-      ? Math.min(100, (payments / credits) * 100)
+      ? Math.min(
+          100,
+          (payments / credits) * 100,
+        )
       : 0;
 
-  const health = receivable === 0
-    ? 100
-    : Math.max(
-        0,
-        Math.min(
-          100,
-          Math.round(
-            collectionRate * 0.7 +
-              (overdue === 0 ? 30 : 15),
+  const health =
+    receivable === 0
+      ? 100
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              collectionRate * 0.7 +
+                (overdue === 0 ? 30 : 15),
+            ),
           ),
-        ),
-      );
+        );
 
   return {
     receivable,
