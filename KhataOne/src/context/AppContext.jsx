@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 
 import {
@@ -41,6 +36,11 @@ import {
   subscribeToNotifications,
 } from "../services/notificationService.js";
 
+import {
+  getSettings,
+  saveSettings,
+} from "../services/settingsService.js";
+
 import { initializeWorkspace } from "../services/workspaceService.js";
 import { auth } from "../config/firebase.js";
 import { AppContext } from "./appContext.js";
@@ -63,7 +63,11 @@ export function AppProvider({ children }) {
   const [loadedRemindersUid, setLoadedRemindersUid] =
     useState(null);
 
-  /* AUTH + WORKSPACE */
+  const [settingsLoadedUid, setSettingsLoadedUid] =
+    useState(null);
+
+  /* ================= AUTH + WORKSPACE ================= */
+
   useEffect(() => {
     return onAuthStateChanged(
       auth,
@@ -75,6 +79,10 @@ export function AppProvider({ children }) {
             ...current,
             customers: [],
             transactions: [],
+            notifications: [],
+            business: {},
+            profile: {},
+            preferences: {},
           }));
 
           setReminders([]);
@@ -83,17 +91,29 @@ export function AppProvider({ children }) {
           setLoadedCustomersUid(null);
           setLoadedTransactionsUid(null);
           setLoadedRemindersUid(null);
+          setSettingsLoadedUid(null);
 
           return;
         }
 
+        const uid = currentUser.uid;
+
         try {
-          await initializeWorkspace(
-            currentUser.uid,
-          );
+          /* CREATE WORKSPACE STRUCTURE */
+          await initializeWorkspace(uid);
+
+          /* LOAD SETTINGS */
+          const settings = await getSettings(uid);
+
+          setData((current) => ({
+            ...current,
+            ...settings,
+          }));
+
+          setSettingsLoadedUid(uid);
         } catch (error) {
           console.error(
-            "Workspace initialization error:",
+            "Workspace/settings error:",
             error,
           );
         }
@@ -101,7 +121,8 @@ export function AppProvider({ children }) {
     );
   }, []);
 
-  /* CUSTOMERS REALTIME */
+  /* ================= CUSTOMERS REALTIME ================= */
+
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -120,7 +141,8 @@ export function AppProvider({ children }) {
     );
   }, [user?.uid]);
 
-  /* TRANSACTIONS REALTIME */
+  /* ================= TRANSACTIONS REALTIME ================= */
+
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -131,18 +153,16 @@ export function AppProvider({ children }) {
       (firebaseTransactions) => {
         setData((current) => ({
           ...current,
-          transactions:
-            firebaseTransactions,
+          transactions: firebaseTransactions,
         }));
 
-        setLoadedTransactionsUid(
-          user.uid,
-        );
+        setLoadedTransactionsUid(user.uid);
       },
     );
   }, [user?.uid]);
 
-  /* REMINDERS REALTIME */
+  /* ================= REMINDERS REALTIME ================= */
+
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -152,15 +172,13 @@ export function AppProvider({ children }) {
       user.uid,
       (firebaseReminders) => {
         setReminders(firebaseReminders);
-
-        setLoadedRemindersUid(
-          user.uid,
-        );
+        setLoadedRemindersUid(user.uid);
       },
     );
   }, [user?.uid]);
 
-  /* NOTIFICATIONS REALTIME */
+  /* ================= NOTIFICATIONS REALTIME ================= */
+
   useEffect(() => {
     if (!user?.uid) {
       setNotifications([]);
@@ -177,10 +195,13 @@ export function AppProvider({ children }) {
     );
   }, [user?.uid]);
 
-  /* LOCAL BACKUP */
+  /* ================= LOCAL BACKUP ================= */
+
   useEffect(() => {
     saveWorkspace(data);
   }, [data]);
+
+  /* ================= VISIBLE DATA ================= */
 
   const visibleData = useMemo(
     () =>
@@ -202,7 +223,8 @@ export function AppProvider({ children }) {
     ? reminders
     : [];
 
-  /* CUSTOMER STATS */
+  /* ================= CUSTOMER STATS ================= */
+
   const customers = useMemo(
     () =>
       (visibleData.customers || []).map(
@@ -215,7 +237,8 @@ export function AppProvider({ children }) {
     [visibleData],
   );
 
-  /* TOTALS */
+  /* ================= TOTALS ================= */
+
   const totals = useMemo(
     () =>
       metrics(
@@ -225,15 +248,48 @@ export function AppProvider({ children }) {
     [visibleData, range],
   );
 
-  /* UPDATE */
-  const update = (changes) => {
+  /* ================= UPDATE ================= */
+
+  const update = async (changes) => {
     setData((current) => ({
       ...current,
       ...changes,
     }));
+
+    const isSettingsUpdate =
+      "business" in changes ||
+      "profile" in changes ||
+      "preferences" in changes ||
+      "notifications" in changes;
+
+    if (!user?.uid || !isSettingsUpdate) {
+      return true;
+    }
+
+    try {
+      await saveSettings(
+        user.uid,
+        changes,
+      );
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Settings save error:",
+        error,
+      );
+
+      notify(
+        error?.message ||
+          "Failed to save settings",
+      );
+
+      return false;
+    }
   };
 
-  /* TOAST */
+  /* ================= TOAST ================= */
+
   const notify = (message) => {
     setToast(message);
 
@@ -243,7 +299,8 @@ export function AppProvider({ children }) {
     );
   };
 
-  /* ACTIVITY + FIREBASE NOTIFICATION */
+  /* ================= ACTIVITY + NOTIFICATION ================= */
+
   const activity = (
     title,
     detail = "",
@@ -276,7 +333,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  /* SAVE CUSTOMER */
+  /* ================= SAVE CUSTOMER ================= */
+
   const saveCustomer = async (value) => {
     if (!user?.uid) {
       notify("Please login first");
@@ -284,9 +342,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(
-        value?.id,
-      );
+      const exists = Boolean(value?.id);
 
       if (exists) {
         await updateCustomer(
@@ -328,7 +384,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  /* SAVE TRANSACTION */
+  /* ================= SAVE TRANSACTION ================= */
+
   const saveTxn = async (value) => {
     if (!user?.uid) {
       notify("Please login first");
@@ -336,9 +393,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(
-        value?.id,
-      );
+      const exists = Boolean(value?.id);
 
       if (exists) {
         await updateTransaction(
@@ -368,7 +423,7 @@ export function AppProvider({ children }) {
           Number(
             value?.amount || 0,
           ),
-          data.business?.currency ||
+          data?.preferences?.currency ||
             "₹",
         ),
       );
@@ -394,10 +449,9 @@ export function AppProvider({ children }) {
     }
   };
 
-  /* DELETE CUSTOMER */
-  const deleteCustomer = async (
-    id,
-  ) => {
+  /* ================= DELETE CUSTOMER ================= */
+
+  const deleteCustomer = async (id) => {
     if (!user?.uid) {
       notify("Please login first");
       return false;
@@ -420,9 +474,7 @@ export function AppProvider({ children }) {
         item?.name || "",
       );
 
-      notify(
-        "Customer deleted",
-      );
+      notify("Customer deleted");
 
       return true;
     } catch (error) {
@@ -439,7 +491,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  /* DELETE TRANSACTION */
+  /* ================= DELETE TRANSACTION ================= */
+
   const deleteTxn = async (id) => {
     if (!user?.uid) {
       notify("Please login first");
@@ -475,7 +528,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  /* CREATE REMINDER */
+  /* ================= CREATE REMINDER ================= */
+
   const reminder = async (
     customer,
     channel = "WhatsApp",
@@ -487,9 +541,7 @@ export function AppProvider({ children }) {
     }
 
     if (!customer?.id) {
-      notify(
-        "Customer ID missing",
-      );
+      notify("Customer ID missing");
       return false;
     }
 
@@ -546,9 +598,7 @@ export function AppProvider({ children }) {
         customers,
         totals,
 
-        reminders:
-          visibleReminders,
-
+        reminders: visibleReminders,
         notifications,
 
         range,
@@ -570,6 +620,11 @@ export function AppProvider({ children }) {
         loadingReminders:
           Boolean(user?.uid) &&
           loadedRemindersUid !==
+            user.uid,
+
+        loadingSettings:
+          Boolean(user?.uid) &&
+          settingsLoadedUid !==
             user.uid,
 
         update,

@@ -2,7 +2,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -41,38 +40,16 @@ const defaultSettings = {
   },
 };
 
-export async function getSettings(userId) {
-  try {
-    const ref = doc(db, "users", userId, "settings", "profile");
-    const snapshot = await getDoc(ref);
+const settingsRef = (uid) =>
+  doc(db, "users", uid, "settings", "business");
 
-    if (snapshot.exists()) {
-      return {
-        ...defaultSettings,
-        ...snapshot.data(),
+export async function getSettings(uid) {
+  if (!uid) return defaultSettings;
 
-        profile: {
-          ...defaultSettings.profile,
-          ...(snapshot.data().profile || {}),
-        },
+  const ref = settingsRef(uid);
+  const snapshot = await getDoc(ref);
 
-        business: {
-          ...defaultSettings.business,
-          ...(snapshot.data().business || {}),
-        },
-
-        preferences: {
-          ...defaultSettings.preferences,
-          ...(snapshot.data().preferences || {}),
-        },
-
-        notifications: {
-          ...defaultSettings.notifications,
-          ...(snapshot.data().notifications || {}),
-        },
-      };
-    }
-
+  if (!snapshot.exists()) {
     await setDoc(ref, {
       ...defaultSettings,
       createdAt: serverTimestamp(),
@@ -80,46 +57,50 @@ export async function getSettings(userId) {
     });
 
     return defaultSettings;
-  } catch (error) {
-    console.error("Get settings error:", error);
-    throw error;
   }
+
+  const data = snapshot.data();
+
+  return {
+    ...defaultSettings,
+    ...data,
+    profile: {
+      ...defaultSettings.profile,
+      ...(data.profile || {}),
+    },
+    business: {
+      ...defaultSettings.business,
+      ...(data.business || {}),
+    },
+    preferences: {
+      ...defaultSettings.preferences,
+      ...(data.preferences || {}),
+    },
+    notifications: {
+      ...defaultSettings.notifications,
+      ...(data.notifications || {}),
+    },
+  };
 }
 
-export async function saveSettings(userId, settings) {
-  try {
-    const ref = doc(db, "users", userId, "settings", "profile");
-
-    await setDoc(
-      ref,
-      {
-        ...settings,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    return true;
-  } catch (error) {
-    console.error("Save settings error:", error);
-    throw error;
+export async function saveSettings(
+  uid,
+  settings,
+) {
+  if (!uid) {
+    throw new Error("User ID missing");
   }
-}
 
-export async function updateSettings(userId, updates) {
-  try {
-    const ref = doc(db, "users", userId, "settings", "profile");
-
-    await updateDoc(ref, {
-      ...updates,
+  await setDoc(
+    settingsRef(uid),
+    {
+      ...settings,
       updatedAt: serverTimestamp(),
-    });
+    },
+    { merge: true },
+  );
 
-    return true;
-  } catch (error) {
-    console.error("Update settings error:", error);
-    throw error;
-  }
+  return true;
 }
 
 export { defaultSettings };

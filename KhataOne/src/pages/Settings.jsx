@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useApp } from "../context/useApp.js";
+import { useTheme } from "../context/ThemeContext.jsx";
 import { auth } from "../config/firebase.js";
+
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -19,6 +21,7 @@ import {
   Eye,
   EyeOff,
   Moon,
+  Sun,
   Monitor,
   Volume2,
   Download,
@@ -32,7 +35,37 @@ import {
 } from "lucide-react";
 
 export default function Settings() {
-  const { data, update, notify } = useApp();
+  const {
+    data,
+    notify,
+    loadingSettings,
+  } = useApp();
+
+  if (loadingSettings) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#7b1825] border-t-transparent" />
+          <p className="mt-3 text-sm text-[#71696b]">
+            Loading settings...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SettingsContent
+      data={data}
+      notify={notify}
+    />
+  );
+}
+
+function SettingsContent({ data, notify }) {
+  const { update } = useApp();
+
+  const { theme, toggleTheme } = useTheme();
 
   const [business, setBusiness] = useState(() => ({
     name: data?.business?.name || "",
@@ -44,8 +77,47 @@ export default function Settings() {
 
   const [profile, setProfile] = useState(() => ({
     name: data?.profile?.name || "",
-    email: data?.profile?.email || auth.currentUser?.email || "",
+    email:
+      data?.profile?.email ||
+      auth.currentUser?.email ||
+      "",
     role: data?.profile?.role || "Owner",
+  }));
+
+  const [preferences, setPreferences] = useState(() => ({
+    language:
+      data?.preferences?.language ||
+      "English",
+    dateFormat:
+      data?.preferences?.dateFormat ||
+      "DD/MM/YYYY",
+    currency:
+      data?.preferences?.currency ||
+      "INR (₹)",
+    darkMode:
+      data?.preferences?.darkMode ??
+      theme === "dark",
+    compactView:
+      data?.preferences?.compactView ??
+      false,
+    playSounds:
+      data?.preferences?.playSounds ??
+      true,
+  }));
+
+  const [notifications, setNotifications] = useState(() => ({
+    paymentReminders:
+      data?.notifications
+        ?.paymentReminders ?? true,
+    collectionAlerts:
+      data?.notifications
+        ?.collectionAlerts ?? true,
+    newCustomer:
+      data?.notifications
+        ?.newCustomer ?? true,
+    systemUpdates:
+      data?.notifications
+        ?.systemUpdates ?? false,
   }));
 
   const [passwords, setPasswords] = useState({
@@ -60,24 +132,9 @@ export default function Settings() {
     confirm: false,
   });
 
-  const [preferences, setPreferences] = useState({
-    language: "English",
-    dateFormat: "DD/MM/YYYY",
-    currency: "INR (₹)",
-    darkMode: false,
-    compactView: false,
-    playSounds: true,
-  });
-
-  const [notifications, setNotifications] = useState({
-    paymentReminders: true,
-    collectionAlerts: true,
-    newCustomer: true,
-    systemUpdates: false,
-  });
-
   const [saving, setSaving] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] =
+    useState(false);
 
   /* ================= SAVE SETTINGS ================= */
 
@@ -85,23 +142,45 @@ export default function Settings() {
     try {
       setSaving(true);
 
-      await update?.({
+      const success = await update({
         business,
         profile,
-        preferences,
+        preferences: {
+          ...preferences,
+          darkMode: theme === "dark",
+        },
         notifications,
       });
 
-      notify?.("Settings saved successfully");
+      if (success !== false) {
+        notify?.("Settings saved successfully");
+      }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Settings save error:",
+        error,
+      );
+
       notify?.("Failed to save settings");
     } finally {
       setSaving(false);
     }
   };
 
-  /* ================= PASSWORD UPDATE ================= */
+  /* ================= DARK MODE ================= */
+
+  const handleDarkMode = () => {
+    const next = theme !== "dark";
+
+    setPreferences((current) => ({
+      ...current,
+      darkMode: next,
+    }));
+
+    toggleTheme();
+  };
+
+  /* ================= PASSWORD ================= */
 
   const handlePasswordUpdate = async () => {
     const user = auth.currentUser;
@@ -126,26 +205,40 @@ export default function Settings() {
     }
 
     if (passwords.newPassword.length < 6) {
-      notify?.("New password must be at least 6 characters");
+      notify?.(
+        "New password must be at least 6 characters",
+      );
       return;
     }
 
-    if (passwords.newPassword !== passwords.confirm) {
-      notify?.("New password and confirm password do not match");
+    if (
+      passwords.newPassword !==
+      passwords.confirm
+    ) {
+      notify?.(
+        "New password and confirm password do not match",
+      );
       return;
     }
 
     try {
       setPasswordLoading(true);
 
-      const credential = EmailAuthProvider.credential(
-        user.email,
-        passwords.current,
+      const credential =
+        EmailAuthProvider.credential(
+          user.email,
+          passwords.current,
+        );
+
+      await reauthenticateWithCredential(
+        user,
+        credential,
       );
 
-      await reauthenticateWithCredential(user, credential);
-
-      await updatePassword(user, passwords.newPassword);
+      await updatePassword(
+        user,
+        passwords.newPassword,
+      );
 
       setPasswords({
         current: "",
@@ -155,12 +248,17 @@ export default function Settings() {
 
       notify?.("Password updated successfully");
     } catch (error) {
-      console.error("Password update error:", error);
+      console.error(
+        "Password update error:",
+        error,
+      );
 
       switch (error.code) {
         case "auth/wrong-password":
         case "auth/invalid-credential":
-          notify?.("Current password is incorrect");
+          notify?.(
+            "Current password is incorrect",
+          );
           break;
 
         case "auth/weak-password":
@@ -168,18 +266,23 @@ export default function Settings() {
           break;
 
         case "auth/requires-recent-login":
-          notify?.("Please logout and login again");
+          notify?.(
+            "Please logout and login again",
+          );
           break;
 
         default:
-          notify?.(error.message || "Failed to update password");
+          notify?.(
+            error.message ||
+              "Failed to update password",
+          );
       }
     } finally {
       setPasswordLoading(false);
     }
   };
 
-  /* ================= IMAGE UPLOAD ================= */
+  /* ================= LOGO ================= */
 
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -189,8 +292,8 @@ export default function Settings() {
     const reader = new FileReader();
 
     reader.onload = () => {
-      setBusiness((prev) => ({
-        ...prev,
+      setBusiness((current) => ({
+        ...current,
         logo: reader.result,
       }));
     };
@@ -198,7 +301,7 @@ export default function Settings() {
     reader.readAsDataURL(file);
   };
 
-  /* ================= EXPORT DATA ================= */
+  /* ================= EXPORT ================= */
 
   const exportData = () => {
     try {
@@ -206,27 +309,41 @@ export default function Settings() {
         business,
         profile,
         customers: data?.customers || [],
-        transactions: data?.transactions || [],
-        exportedAt: new Date().toISOString(),
+        transactions:
+          data?.transactions || [],
+        exportedAt:
+          new Date().toISOString(),
       };
 
       const blob = new Blob(
-        [JSON.stringify(exportData, null, 2)],
+        [
+          JSON.stringify(
+            exportData,
+            null,
+            2,
+          ),
+        ],
         {
           type: "application/json",
         },
       );
 
-      const url = URL.createObjectURL(blob);
+      const url =
+        URL.createObjectURL(blob);
 
-      const link = document.createElement("a");
+      const link =
+        document.createElement("a");
+
       link.href = url;
-      link.download = "khataone-backup.json";
+      link.download =
+        "khataone-backup.json";
       link.click();
 
       URL.revokeObjectURL(url);
 
-      notify?.("Data exported successfully");
+      notify?.(
+        "Data exported successfully",
+      );
     } catch (error) {
       console.error(error);
       notify?.("Failed to export data");
@@ -243,18 +360,26 @@ export default function Settings() {
           ...data,
           business,
           profile,
-          backupDate: new Date().toISOString(),
+          backupDate:
+            new Date().toISOString(),
         }),
       );
 
-      notify?.("Backup created successfully");
+      notify?.(
+        "Backup created successfully",
+      );
     } catch {
       notify?.("Backup failed");
     }
   };
 
+  /* ================= RESTORE ================= */
+
   const restoreData = () => {
-    const backup = localStorage.getItem("khataone_backup");
+    const backup =
+      localStorage.getItem(
+        "khataone_backup",
+      );
 
     if (!backup) {
       notify?.("No backup found");
@@ -262,33 +387,46 @@ export default function Settings() {
     }
 
     try {
-      const parsed = JSON.parse(backup);
+      const parsed =
+        JSON.parse(backup);
 
-      setBusiness(parsed.business || business);
-      setProfile(parsed.profile || profile);
+      setBusiness(
+        parsed.business || business,
+      );
 
-      notify?.("Backup restored successfully");
+      setProfile(
+        parsed.profile || profile,
+      );
+
+      notify?.(
+        "Backup restored successfully",
+      );
     } catch {
-      notify?.("Failed to restore backup");
+      notify?.(
+        "Failed to restore backup",
+      );
     }
   };
 
-  /* ================= DELETE ACCOUNT ================= */
+  /* ================= DELETE ================= */
 
   const deleteAccount = () => {
-    const confirmed = window.confirm(
-      "Are you sure? This action cannot be undone.",
-    );
+    const confirmed =
+      window.confirm(
+        "Are you sure? This action cannot be undone.",
+      );
 
     if (!confirmed) return;
 
-    notify?.("Account deletion request initiated");
+    notify?.(
+      "Account deletion request initiated",
+    );
   };
 
   return (
     <div className="mx-auto w-full max-w-[1450px] pb-10">
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
 
       <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
@@ -297,20 +435,25 @@ export default function Settings() {
           </h1>
 
           <p className="mt-1 text-sm text-[#71696b] dark:text-[#b7aaae]">
-            Customize your KhataOne experience. Manage your business,
-            preferences and account all in one place.
+            Customize your KhataOne experience.
+            Manage your business, preferences
+            and account all in one place.
           </p>
         </div>
 
         <div className="hidden text-right font-serif italic text-[#7b1825] lg:block">
-          <p className="text-lg">Your Business</p>
-          <p className="text-lg">Our Support ♡</p>
+          <p className="text-lg">
+            Your Business
+          </p>
+          <p className="text-lg">
+            Our Support ♡
+          </p>
         </div>
       </div>
 
       <div className="space-y-3">
 
-        {/* ================= BUSINESS SETTINGS ================= */}
+        {/* BUSINESS */}
 
         <SettingsSection
           icon={<Building2 size={23} />}
@@ -319,7 +462,10 @@ export default function Settings() {
         >
           <div className="grid gap-3 md:grid-cols-12">
 
-            <Field className="md:col-span-3" label="Business Name">
+            <Field
+              className="md:col-span-3"
+              label="Business Name"
+            >
               <input
                 value={business.name}
                 onChange={(e) =>
@@ -333,7 +479,10 @@ export default function Settings() {
               />
             </Field>
 
-            <Field className="md:col-span-3" label="Business Type">
+            <Field
+              className="md:col-span-3"
+              label="Business Type"
+            >
               <Select
                 value={business.type}
                 onChange={(e) =>
@@ -352,7 +501,10 @@ export default function Settings() {
               />
             </Field>
 
-            <Field className="md:col-span-3" label="Phone Number">
+            <Field
+              className="md:col-span-3"
+              label="Phone Number"
+            >
               <input
                 value={business.phone}
                 onChange={(e) =>
@@ -366,20 +518,28 @@ export default function Settings() {
               />
             </Field>
 
-            <Field className="md:col-span-3" label="Business Logo">
+            <Field
+              className="md:col-span-3"
+              label="Business Logo"
+            >
               <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#cfc4c0] bg-white px-3 text-xs text-[#74696b] transition hover:border-[#7b1825] hover:text-[#7b1825] dark:bg-[#2d2528]">
                 <Upload size={15} />
                 Upload
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={handleLogoUpload}
+                  onChange={
+                    handleLogoUpload
+                  }
                   className="hidden"
                 />
               </label>
             </Field>
 
-            <Field className="md:col-span-12" label="Address">
+            <Field
+              className="md:col-span-12"
+              label="Address"
+            >
               <input
                 value={business.address}
                 onChange={(e) =>
@@ -395,7 +555,7 @@ export default function Settings() {
           </div>
         </SettingsSection>
 
-        {/* ================= PROFILE ================= */}
+        {/* PROFILE */}
 
         <SettingsSection
           icon={<UserRound size={23} />}
@@ -414,19 +574,31 @@ export default function Settings() {
                     className="size-full object-cover"
                   />
                 ) : (
-                  profile.name?.slice(0, 2).toUpperCase() || "SM"
+                  profile.name
+                    ?.slice(0, 2)
+                    .toUpperCase() ||
+                  "SM"
                 )}
 
-                <button
-                  className="absolute bottom-0 right-0 grid size-6 place-items-center rounded-full bg-[#5d111c] text-white"
-                  type="button"
-                >
+                <label className="absolute bottom-0 right-0 grid size-6 cursor-pointer place-items-center rounded-full bg-[#5d111c] text-white">
                   <Camera size={12} />
-                </button>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={
+                      handleLogoUpload
+                    }
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
 
-            <Field className="md:col-span-3" label="Full Name">
+            <Field
+              className="md:col-span-3"
+              label="Full Name"
+            >
               <input
                 value={profile.name}
                 onChange={(e) =>
@@ -440,7 +612,10 @@ export default function Settings() {
               />
             </Field>
 
-            <Field className="md:col-span-3" label="Email Address">
+            <Field
+              className="md:col-span-3"
+              label="Email Address"
+            >
               <input
                 value={profile.email}
                 disabled
@@ -448,7 +623,10 @@ export default function Settings() {
               />
             </Field>
 
-            <Field className="md:col-span-3" label="Role">
+            <Field
+              className="md:col-span-3"
+              label="Role"
+            >
               <Select
                 value={profile.role}
                 onChange={(e) =>
@@ -457,13 +635,17 @@ export default function Settings() {
                     role: e.target.value,
                   })
                 }
-                options={["Owner", "Manager", "Staff"]}
+                options={[
+                  "Owner",
+                  "Manager",
+                  "Staff",
+                ]}
               />
             </Field>
           </div>
         </SettingsSection>
 
-        {/* ================= PASSWORD ================= */}
+        {/* PASSWORD */}
 
         <SettingsSection
           icon={<LockKeyhole size={23} />}
@@ -476,12 +658,15 @@ export default function Settings() {
               className="md:col-span-3"
               label="Current Password"
               value={passwords.current}
-              show={showPassword.current}
+              show={
+                showPassword.current
+              }
               placeholder="Enter current password"
               onToggle={() =>
                 setShowPassword({
                   ...showPassword,
-                  current: !showPassword.current,
+                  current:
+                    !showPassword.current,
                 })
               }
               onChange={(value) =>
@@ -495,13 +680,18 @@ export default function Settings() {
             <PasswordField
               className="md:col-span-3"
               label="New Password"
-              value={passwords.newPassword}
-              show={showPassword.newPassword}
+              value={
+                passwords.newPassword
+              }
+              show={
+                showPassword.newPassword
+              }
               placeholder="Enter new password"
               onToggle={() =>
                 setShowPassword({
                   ...showPassword,
-                  newPassword: !showPassword.newPassword,
+                  newPassword:
+                    !showPassword.newPassword,
                 })
               }
               onChange={(value) =>
@@ -516,12 +706,15 @@ export default function Settings() {
               className="md:col-span-3"
               label="Confirm Password"
               value={passwords.confirm}
-              show={showPassword.confirm}
+              show={
+                showPassword.confirm
+              }
               placeholder="Confirm password"
               onToggle={() =>
                 setShowPassword({
                   ...showPassword,
-                  confirm: !showPassword.confirm,
+                  confirm:
+                    !showPassword.confirm,
                 })
               }
               onChange={(value) =>
@@ -535,18 +728,26 @@ export default function Settings() {
             <button
               type="button"
               disabled={passwordLoading}
-              onClick={handlePasswordUpdate}
+              onClick={
+                handlePasswordUpdate
+              }
               className="h-10 rounded-xl bg-[#7b1825] px-5 text-sm font-semibold text-white transition hover:bg-[#62111c] disabled:cursor-not-allowed disabled:opacity-60 md:col-span-3"
             >
-              {passwordLoading ? "Updating..." : "Update Password"}
+              {passwordLoading
+                ? "Updating..."
+                : "Update Password"}
             </button>
           </div>
         </SettingsSection>
 
-        {/* ================= APP PREFERENCES ================= */}
+        {/* PREFERENCES */}
 
         <SettingsSection
-          icon={<SlidersHorizontal size={23} />}
+          icon={
+            <SlidersHorizontal
+              size={23}
+            />
+          }
           title="App Preferences"
           description="Set your default language, currency, date format and other preferences."
         >
@@ -554,24 +755,34 @@ export default function Settings() {
 
             <Field label="Language">
               <Select
-                value={preferences.language}
+                value={
+                  preferences.language
+                }
                 onChange={(e) =>
                   setPreferences({
                     ...preferences,
-                    language: e.target.value,
+                    language:
+                      e.target.value,
                   })
                 }
-                options={["English", "Hindi", "Marathi"]}
+                options={[
+                  "English",
+                  "Hindi",
+                  "Marathi",
+                ]}
               />
             </Field>
 
             <Field label="Date Format">
               <Select
-                value={preferences.dateFormat}
+                value={
+                  preferences.dateFormat
+                }
                 onChange={(e) =>
                   setPreferences({
                     ...preferences,
-                    dateFormat: e.target.value,
+                    dateFormat:
+                      e.target.value,
                   })
                 }
                 options={[
@@ -584,14 +795,21 @@ export default function Settings() {
 
             <Field label="Currency">
               <Select
-                value={preferences.currency}
+                value={
+                  preferences.currency
+                }
                 onChange={(e) =>
                   setPreferences({
                     ...preferences,
-                    currency: e.target.value,
+                    currency:
+                      e.target.value,
                   })
                 }
-                options={["INR (₹)", "USD ($)", "EUR (€)"]}
+                options={[
+                  "INR (₹)",
+                  "USD ($)",
+                  "EUR (€)",
+                ]}
               />
             </Field>
           </div>
@@ -599,25 +817,33 @@ export default function Settings() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
 
             <ToggleRow
-              icon={<Moon size={18} />}
+              icon={
+                theme === "dark" ? (
+                  <Sun size={18} />
+                ) : (
+                  <Moon size={18} />
+                )
+              }
               title="Dark Mode"
-              checked={preferences.darkMode}
-              onChange={() =>
-                setPreferences({
-                  ...preferences,
-                  darkMode: !preferences.darkMode,
-                })
+              checked={
+                theme === "dark"
+              }
+              onChange={
+                handleDarkMode
               }
             />
 
             <ToggleRow
               icon={<Monitor size={18} />}
               title="Compact View"
-              checked={preferences.compactView}
+              checked={
+                preferences.compactView
+              }
               onChange={() =>
                 setPreferences({
                   ...preferences,
-                  compactView: !preferences.compactView,
+                  compactView:
+                    !preferences.compactView,
                 })
               }
             />
@@ -625,18 +851,21 @@ export default function Settings() {
             <ToggleRow
               icon={<Volume2 size={18} />}
               title="Play Sounds"
-              checked={preferences.playSounds}
+              checked={
+                preferences.playSounds
+              }
               onChange={() =>
                 setPreferences({
                   ...preferences,
-                  playSounds: !preferences.playSounds,
+                  playSounds:
+                    !preferences.playSounds,
                 })
               }
             />
           </div>
         </SettingsSection>
 
-        {/* ================= NOTIFICATIONS ================= */}
+        {/* NOTIFICATIONS */}
 
         <SettingsSection
           icon={<Bell size={23} />}
@@ -648,11 +877,14 @@ export default function Settings() {
             <NotificationItem
               title="Payment Reminders"
               description="Get notified for pending payments"
-              checked={notifications.paymentReminders}
+              checked={
+                notifications.paymentReminders
+              }
               onChange={() =>
                 setNotifications({
                   ...notifications,
-                  paymentReminders: !notifications.paymentReminders,
+                  paymentReminders:
+                    !notifications.paymentReminders,
                 })
               }
             />
@@ -660,11 +892,14 @@ export default function Settings() {
             <NotificationItem
               title="Collection Alerts"
               description="Get notified on new collections"
-              checked={notifications.collectionAlerts}
+              checked={
+                notifications.collectionAlerts
+              }
               onChange={() =>
                 setNotifications({
                   ...notifications,
-                  collectionAlerts: !notifications.collectionAlerts,
+                  collectionAlerts:
+                    !notifications.collectionAlerts,
                 })
               }
             />
@@ -672,11 +907,14 @@ export default function Settings() {
             <NotificationItem
               title="New Customer"
               description="Get notified when a customer is added"
-              checked={notifications.newCustomer}
+              checked={
+                notifications.newCustomer
+              }
               onChange={() =>
                 setNotifications({
                   ...notifications,
-                  newCustomer: !notifications.newCustomer,
+                  newCustomer:
+                    !notifications.newCustomer,
                 })
               }
             />
@@ -684,18 +922,21 @@ export default function Settings() {
             <NotificationItem
               title="System Updates"
               description="Important updates and announcements"
-              checked={notifications.systemUpdates}
+              checked={
+                notifications.systemUpdates
+              }
               onChange={() =>
                 setNotifications({
                   ...notifications,
-                  systemUpdates: !notifications.systemUpdates,
+                  systemUpdates:
+                    !notifications.systemUpdates,
                 })
               }
             />
           </div>
         </SettingsSection>
 
-        {/* ================= DATA BACKUP ================= */}
+        {/* DATA */}
 
         <SettingsSection
           icon={<Database size={23} />}
@@ -705,21 +946,27 @@ export default function Settings() {
           <div className="grid gap-3 md:grid-cols-3">
 
             <ActionButton
-              icon={<Download size={20} />}
+              icon={
+                <Download size={20} />
+              }
               title="Export Data"
               description="Download your data"
               onClick={exportData}
             />
 
             <ActionButton
-              icon={<CloudCog size={20} />}
+              icon={
+                <CloudCog size={20} />
+              }
               title="Backup Now"
               description="Create manual backup"
               onClick={backupData}
             />
 
             <ActionButton
-              icon={<RotateCcw size={20} />}
+              icon={
+                <RotateCcw size={20} />
+              }
               title="Restore Data"
               description="Restore from backup"
               onClick={restoreData}
@@ -727,12 +974,13 @@ export default function Settings() {
           </div>
         </SettingsSection>
 
-      
-        {/* ================= DANGER ZONE ================= */}
+        {/* DANGER */}
 
         <SettingsSection
           danger
-          icon={<TriangleAlert size={23} />}
+          icon={
+            <TriangleAlert size={23} />
+          }
           title="Danger Zone"
           description="These actions are permanent and cannot be undone."
         >
@@ -749,14 +997,18 @@ export default function Settings() {
                 </h3>
 
                 <p className="mt-1 text-xs text-red-700/70 dark:text-red-300/60">
-                  This will permanently delete your account and all your data.
+                  This will permanently
+                  delete your account and
+                  all your data.
                 </p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={deleteAccount}
+              onClick={
+                deleteAccount
+              }
               className="rounded-xl border border-red-300 bg-white px-5 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-600 hover:text-white"
             >
               Delete Account
@@ -765,7 +1017,7 @@ export default function Settings() {
         </SettingsSection>
       </div>
 
-      {/* ================= SAVE ================= */}
+      {/* SAVE */}
 
       <div className="mt-5 flex justify-end">
         <button
@@ -775,7 +1027,9 @@ export default function Settings() {
           className="flex items-center gap-2 rounded-xl bg-[#7b1825] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#7b1825]/20 transition hover:bg-[#62111c] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save size={17} />
-          {saving ? "Saving..." : "Save Changes"}
+          {saving
+            ? "Saving..."
+            : "Save Changes"}
         </button>
       </div>
     </div>
@@ -801,8 +1055,8 @@ function SettingsSection({
       <div className="grid lg:grid-cols-[265px_1fr]">
 
         <div className="border-b border-[#e8e1dc] bg-[#fcfbfa] p-5 dark:border-[#44383c] dark:bg-[#2b2226] lg:border-b-0 lg:border-r">
-
           <div className="flex items-start gap-4">
+
             <div
               className={`grid size-12 shrink-0 place-items-center rounded-2xl ${
                 danger
@@ -833,9 +1087,15 @@ function SettingsSection({
   );
 }
 
-function Field({ label, children, className = "" }) {
+function Field({
+  label,
+  children,
+  className = "",
+}) {
   return (
-    <label className={`block min-w-0 ${className}`}>
+    <label
+      className={`block min-w-0 ${className}`}
+    >
       <span className="mb-1.5 block text-xs font-medium text-[#51484a] dark:text-[#ddd2d5]">
         {label}
       </span>
@@ -845,7 +1105,11 @@ function Field({ label, children, className = "" }) {
   );
 }
 
-function Select({ value, onChange, options }) {
+function Select({
+  value,
+  onChange,
+  options,
+}) {
   return (
     <div className="relative">
       <select
@@ -854,7 +1118,9 @@ function Select({ value, onChange, options }) {
         className={`${inputClass} appearance-none pr-9`}
       >
         {options.map((option) => (
-          <option key={option}>{option}</option>
+          <option key={option}>
+            {option}
+          </option>
         ))}
       </select>
 
@@ -876,12 +1142,19 @@ function PasswordField({
   className = "",
 }) {
   return (
-    <Field label={label} className={className}>
+    <Field
+      label={label}
+      className={className}
+    >
       <div className="relative">
         <input
-          type={show ? "text" : "password"}
+          type={
+            show ? "text" : "password"
+          }
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) =>
+            onChange(e.target.value)
+          }
           placeholder={placeholder}
           className={`${inputClass} pr-10`}
         />
@@ -891,32 +1164,48 @@ function PasswordField({
           onClick={onToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#827779]"
         >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          {show ? (
+            <EyeOff size={16} />
+          ) : (
+            <Eye size={16} />
+          )}
         </button>
       </div>
     </Field>
   );
 }
 
-function Toggle({ checked, onChange }) {
+function Toggle({
+  checked,
+  onChange,
+}) {
   return (
     <button
       type="button"
       onClick={onChange}
       className={`relative h-6 w-11 rounded-full transition ${
-        checked ? "bg-[#7b1825]" : "bg-[#c9c3c2]"
+        checked
+          ? "bg-[#7b1825]"
+          : "bg-[#c9c3c2]"
       }`}
     >
       <span
         className={`absolute top-1 size-4 rounded-full bg-white shadow transition-all ${
-          checked ? "left-6" : "left-1"
+          checked
+            ? "left-6"
+            : "left-1"
         }`}
       />
     </button>
   );
 }
 
-function ToggleRow({ icon, title, checked, onChange }) {
+function ToggleRow({
+  icon,
+  title,
+  checked,
+  onChange,
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e5ded9] bg-[#fcfbfa] px-4 py-3 dark:border-[#493c40] dark:bg-[#2c2528]">
       <div className="flex items-center gap-3">
@@ -929,7 +1218,10 @@ function ToggleRow({ icon, title, checked, onChange }) {
         </span>
       </div>
 
-      <Toggle checked={checked} onChange={onChange} />
+      <Toggle
+        checked={checked}
+        onChange={onChange}
+      />
     </div>
   );
 }
@@ -942,7 +1234,6 @@ function NotificationItem({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-[#e5ded9] px-4 py-3 dark:border-[#493c40]">
-
       <div>
         <h3 className="text-sm font-semibold">
           {title}
@@ -953,7 +1244,10 @@ function NotificationItem({
         </p>
       </div>
 
-      <Toggle checked={checked} onChange={onChange} />
+      <Toggle
+        checked={checked}
+        onChange={onChange}
+      />
     </div>
   );
 }
