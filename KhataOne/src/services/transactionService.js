@@ -13,10 +13,17 @@ import {
 import { db } from "../config/firebase.js";
 
 const getTransactionCollection = (userId) =>
-  collection(db, "users", userId, "transactions");
+  collection(
+    db,
+    "users",
+    userId,
+    "transactions",
+  );
 
-// Realtime listener
-export const subscribeToTransactions = (userId, callback) => {
+export const subscribeToTransactions = (
+  userId,
+  callback,
+) => {
   if (!userId) {
     callback([]);
     return () => {};
@@ -30,33 +37,50 @@ export const subscribeToTransactions = (userId, callback) => {
   return onSnapshot(
     q,
     (snapshot) => {
-      const transactions = snapshot.docs.map((document) => ({
-        id: document.id,
-        ...document.data(),
-      }));
+      const transactions = snapshot.docs
+        .filter(
+          (document) =>
+            document.id !== "_system",
+        )
+        .map((document) => ({
+          id: document.id,
+          ...document.data(),
+        }));
 
       callback(transactions);
     },
     (error) => {
-      console.error("Transaction subscription error:", error);
+      console.error(
+        "Transaction subscription error:",
+        error,
+      );
+
       callback([]);
     },
   );
 };
 
-// Add transaction
-export const addTransaction = async (userId, value) => {
+export const addTransaction = async (
+  userId,
+  value,
+) => {
   if (!userId) {
     throw new Error("User not logged in");
   }
 
-  const transactionData = { ...value };
+  const transactionData = {
+    ...(value || {}),
+  };
+
   delete transactionData.id;
 
   const docRef = await addDoc(
     getTransactionCollection(userId),
     {
       ...transactionData,
+      amount: Number(
+        transactionData.amount || 0,
+      ),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
@@ -65,10 +89,14 @@ export const addTransaction = async (userId, value) => {
   return docRef.id;
 };
 
-// Update transaction
-export const updateTransaction = async (userId, value) => {
-  if (!userId || !value.id) {
-    throw new Error("Transaction ID or User ID missing");
+export const updateTransaction = async (
+  userId,
+  value,
+) => {
+  if (!userId || !value?.id) {
+    throw new Error(
+      "Transaction ID or User ID missing",
+    );
   }
 
   const transactionRef = doc(
@@ -79,19 +107,32 @@ export const updateTransaction = async (userId, value) => {
     value.id,
   );
 
-  const transactionData = { ...value };
+  const transactionData = {
+    ...value,
+  };
+
   delete transactionData.id;
 
-  await updateDoc(transactionRef, {
-    ...transactionData,
-    updatedAt: serverTimestamp(),
-  });
+  await updateDoc(
+    transactionRef,
+    {
+      ...transactionData,
+      amount: Number(
+        transactionData.amount || 0,
+      ),
+      updatedAt: serverTimestamp(),
+    },
+  );
 };
 
-// Delete transaction
-export const deleteTransaction = async (userId, transactionId) => {
+export const deleteTransaction = async (
+  userId,
+  transactionId,
+) => {
   if (!userId || !transactionId) {
-    throw new Error("Transaction ID or User ID missing");
+    throw new Error(
+      "Transaction ID or User ID missing",
+    );
   }
 
   const transactionRef = doc(

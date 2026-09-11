@@ -36,6 +36,7 @@ import {
   subscribeToReminders,
 } from "../services/reminderService.js";
 
+import { initializeWorkspace } from "../services/workspaceService.js";
 import { auth } from "../config/firebase.js";
 import { AppContext } from "./appContext.js";
 
@@ -45,24 +46,60 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
   const [reminders, setReminders] = useState([]);
-  const [loadedCustomersUid, setLoadedCustomersUid] = useState(null);
-  const [loadedTransactionsUid, setLoadedTransactionsUid] = useState(null);
-  const [loadedRemindersUid, setLoadedRemindersUid] = useState(null);
 
-  /* AUTH */
+  const [loadedCustomersUid, setLoadedCustomersUid] =
+    useState(null);
+
+  const [loadedTransactionsUid, setLoadedTransactionsUid] =
+    useState(null);
+
+  const [loadedRemindersUid, setLoadedRemindersUid] =
+    useState(null);
+
+  /* AUTH + WORKSPACE */
   useEffect(() => {
-    return onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    return onAuthStateChanged(
+      auth,
+      async (currentUser) => {
+        setUser(currentUser);
+
+        if (!currentUser?.uid) {
+          setData((current) => ({
+            ...current,
+            customers: [],
+            transactions: [],
+          }));
+
+          setReminders([]);
+
+          setLoadedCustomersUid(null);
+          setLoadedTransactionsUid(null);
+          setLoadedRemindersUid(null);
+
+          return;
+        }
+
+        try {
+          await initializeWorkspace(
+            currentUser.uid,
+          );
+        } catch (error) {
+          console.error(
+            "Workspace initialization error:",
+            error,
+          );
+        }
+      },
+    );
   }, []);
 
   /* CUSTOMERS REALTIME */
   useEffect(() => {
-    if (!user?.uid) {
-      return;
-    }
+    if (!user?.uid) return;
 
-    const unsubscribe = subscribeToCustomers(
+    setLoadedCustomersUid(null);
+
+    return subscribeToCustomers(
       user.uid,
       (firebaseCustomers) => {
         setData((current) => ({
@@ -73,17 +110,15 @@ export function AppProvider({ children }) {
         setLoadedCustomersUid(user.uid);
       },
     );
-
-    return unsubscribe;
   }, [user?.uid]);
 
   /* TRANSACTIONS REALTIME */
   useEffect(() => {
-    if (!user?.uid) {
-      return;
-    }
+    if (!user?.uid) return;
 
-    const unsubscribe = subscribeToTransactions(
+    setLoadedTransactionsUid(null);
+
+    return subscribeToTransactions(
       user.uid,
       (firebaseTransactions) => {
         setData((current) => ({
@@ -94,25 +129,21 @@ export function AppProvider({ children }) {
         setLoadedTransactionsUid(user.uid);
       },
     );
-
-    return unsubscribe;
   }, [user?.uid]);
 
   /* REMINDERS REALTIME */
   useEffect(() => {
-    if (!user?.uid) {
-      return;
-    }
+    if (!user?.uid) return;
 
-    const unsubscribe = subscribeToReminders(
+    setLoadedRemindersUid(null);
+
+    return subscribeToReminders(
       user.uid,
       (firebaseReminders) => {
         setReminders(firebaseReminders);
         setLoadedRemindersUid(user.uid);
       },
     );
-
-    return unsubscribe;
   }, [user?.uid]);
 
   /* LOCAL BACKUP */
@@ -132,16 +163,19 @@ export function AppProvider({ children }) {
     [data, user],
   );
 
-  const visibleReminders = user ? reminders : [];
+  const visibleReminders = user
+    ? reminders
+    : [];
 
   /* CUSTOMER STATS */
   const customers = useMemo(
     () =>
-      (visibleData.customers || []).map((item) =>
-        customerStats(
-          item,
-          visibleData.transactions || [],
-        ),
+      (visibleData.customers || []).map(
+        (item) =>
+          customerStats(
+            item,
+            visibleData.transactions || [],
+          ),
       ),
     [visibleData],
   );
@@ -201,7 +235,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(value.id);
+      const exists = Boolean(value?.id);
 
       if (exists) {
         await updateCustomer(
@@ -219,7 +253,7 @@ export function AppProvider({ children }) {
         exists
           ? "Customer updated"
           : "Customer added",
-        value.name,
+        value?.name || "",
       );
 
       notify(
@@ -235,10 +269,7 @@ export function AppProvider({ children }) {
         error,
       );
 
-      notify(
-        "Failed to save customer",
-      );
-
+      notify("Failed to save customer");
       return false;
     }
   };
@@ -251,7 +282,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const exists = Boolean(value.id);
+      const exists = Boolean(value?.id);
 
       if (exists) {
         await updateTransaction(
@@ -266,13 +297,13 @@ export function AppProvider({ children }) {
       }
 
       activity(
-        value.type === "payment"
+        value?.type === "payment"
           ? "Payment received"
           : exists
             ? "Transaction updated"
             : "Transaction created",
         money(
-          Number(value.amount || 0),
+          Number(value?.amount || 0),
           data.business?.currency || "₹",
         ),
       );
@@ -322,9 +353,7 @@ export function AppProvider({ children }) {
         item?.name || "",
       );
 
-      notify(
-        "Customer deleted",
-      );
+      notify("Customer deleted");
 
       return true;
     } catch (error) {
@@ -358,9 +387,7 @@ export function AppProvider({ children }) {
         "Transaction deleted",
       );
 
-      notify(
-        "Transaction deleted",
-      );
+      notify("Transaction deleted");
 
       return true;
     } catch (error) {
@@ -389,20 +416,17 @@ export function AppProvider({ children }) {
     }
 
     if (!customer?.id) {
-      notify(
-        "Customer ID missing",
-      );
+      notify("Customer ID missing");
       return false;
     }
 
     if (
-      Number(
-        customer.outstanding || 0,
-      ) <= 0
+      Number(customer.outstanding || 0) <= 0
     ) {
       notify(
         "No pending amount for this customer",
       );
+
       return false;
     }
 
@@ -454,9 +478,17 @@ export function AppProvider({ children }) {
         toast,
         user,
 
-        loadingCustomers: Boolean(user?.uid) && loadedCustomersUid !== user.uid,
-        loadingTransactions: Boolean(user?.uid) && loadedTransactionsUid !== user.uid,
-        loadingReminders: Boolean(user?.uid) && loadedRemindersUid !== user.uid,
+        loadingCustomers:
+          Boolean(user?.uid) &&
+          loadedCustomersUid !== user.uid,
+
+        loadingTransactions:
+          Boolean(user?.uid) &&
+          loadedTransactionsUid !== user.uid,
+
+        loadingReminders:
+          Boolean(user?.uid) &&
+          loadedRemindersUid !== user.uid,
 
         update,
         notify,

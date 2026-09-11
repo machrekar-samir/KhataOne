@@ -20,9 +20,13 @@ export const createReminder = async (
   message = "",
 ) => {
   if (!uid) throw new Error("User ID missing");
-  if (!customer?.id) throw new Error("Customer ID missing");
+  if (!customer?.id) {
+    throw new Error("Customer ID missing");
+  }
 
-  const amount = Number(customer.outstanding || 0);
+  const amount = Number(
+    customer.outstanding || 0,
+  );
 
   if (amount <= 0) {
     throw new Error("No pending amount");
@@ -52,34 +56,45 @@ export const subscribeToReminders = (
   uid,
   callback,
 ) => {
-  if (!uid) return () => {};
+  if (!uid) {
+    callback([]);
+    return () => {};
+  }
 
   return onSnapshot(
     remindersRef(uid),
     (snapshot) => {
+      const getTime = (value) => {
+        if (value?.toDate) {
+          return value.toDate().getTime();
+        }
+
+        if (value?.seconds) {
+          return value.seconds * 1000;
+        }
+
+        const time = new Date(
+          value || 0,
+        ).getTime();
+
+        return Number.isNaN(time)
+          ? 0
+          : time;
+      };
+
       const items = snapshot.docs
+        .filter(
+          (item) => item.id !== "_system",
+        )
         .map((item) => ({
           id: item.id,
           ...item.data(),
         }))
-        .sort((a, b) => {
-          const getTime = (value) => {
-            if (value?.toDate) {
-              return value.toDate().getTime();
-            }
-
-            if (value?.seconds) {
-              return value.seconds * 1000;
-            }
-
-            return new Date(value || 0).getTime() || 0;
-          };
-
-          return (
+        .sort(
+          (a, b) =>
             getTime(b.createdAt) -
-            getTime(a.createdAt)
-          );
-        });
+            getTime(a.createdAt),
+        );
 
       callback(items);
     },

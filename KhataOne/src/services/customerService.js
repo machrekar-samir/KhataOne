@@ -9,7 +9,8 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../config/firebase";
+
+import { db } from "../config/firebase.js";
 
 const getCustomerCollection = (userId) =>
   collection(db, "users", userId, "customers");
@@ -22,44 +23,59 @@ export const subscribeToCustomers = (userId, callback) => {
 
   const q = query(
     getCustomerCollection(userId),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
   );
 
   return onSnapshot(
     q,
     (snapshot) => {
-      callback(
-        snapshot.docs.map((item) => ({
+      const customers = snapshot.docs
+        .filter((item) => item.id !== "_system")
+        .map((item) => ({
           id: item.id,
           ...item.data(),
-        }))
-      );
+        }));
+
+      callback(customers);
     },
     (error) => {
-      console.error("Customer subscription error:", error);
+      console.error(
+        "Customer subscription error:",
+        error,
+      );
       callback([]);
-    }
+    },
   );
 };
 
 export const addCustomer = async (userId, value) => {
-  if (!userId) throw new Error("User not logged in");
+  if (!userId) {
+    throw new Error("User not logged in");
+  }
 
-  const data = { ...value };
+  const data = { ...(value || {}) };
   delete data.id;
 
-  const docRef = await addDoc(getCustomerCollection(userId), {
-    ...data,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const docRef = await addDoc(
+    getCustomerCollection(userId),
+    {
+      ...data,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+  );
 
   return docRef.id;
 };
 
-export const updateCustomer = async (userId, value) => {
-  if (!userId || !value.id) {
-    throw new Error("Customer ID or User ID missing");
+export const updateCustomer = async (
+  userId,
+  value,
+) => {
+  if (!userId || !value?.id) {
+    throw new Error(
+      "Customer ID or User ID missing",
+    );
   }
 
   const customerRef = doc(
@@ -67,7 +83,7 @@ export const updateCustomer = async (userId, value) => {
     "users",
     userId,
     "customers",
-    value.id
+    value.id,
   );
 
   const data = { ...value };
@@ -79,17 +95,28 @@ export const updateCustomer = async (userId, value) => {
       ...data,
       updatedAt: serverTimestamp(),
     },
-    { merge: true }
+    { merge: true },
   );
 };
 
-export const deleteCustomer = async (userId, customerId) => {
+export const deleteCustomer = async (
+  userId,
+  customerId,
+) => {
   if (!userId || !customerId) {
-    throw new Error("Customer ID or User ID missing");
+    throw new Error(
+      "Customer ID or User ID missing",
+    );
   }
 
   await deleteDoc(
-    doc(db, "users", userId, "customers", customerId)
+    doc(
+      db,
+      "users",
+      userId,
+      "customers",
+      customerId,
+    ),
   );
 };
 

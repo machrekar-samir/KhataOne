@@ -29,7 +29,6 @@ function ProtectedRoute({ children }) {
       <div className="flex min-h-screen items-center justify-center bg-[#f8f6f3]">
         <div className="text-center">
           <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-[#7b1825] border-t-transparent" />
-
           <p className="text-sm text-[#667085]">
             Loading KhataOne...
           </p>
@@ -46,9 +45,11 @@ function PublicRoute({ children }) {
 
   if (loading) return null;
 
-  return user
-    ? <Navigate to="/overview" replace />
-    : children;
+  return user ? (
+    <Navigate to="/overview" replace />
+  ) : (
+    children
+  );
 }
 
 export default function App() {
@@ -56,7 +57,6 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <Routes>
-          {/* Public */}
           <Route
             path="/login"
             element={
@@ -75,7 +75,6 @@ export default function App() {
             }
           />
 
-          {/* Protected App */}
           <Route
             element={
               <ProtectedRoute>
@@ -84,19 +83,41 @@ export default function App() {
             }
           >
             <Route path="/overview" element={<Overview />} />
-
             <Route path="/customers" element={<Customers />} />
-            <Route path="/customers/new" element={<CustomerForm />} />
-            <Route path="/customers/:id" element={<CustomerDetails />} />
-
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/collections" element={<Collections />} />
-            <Route path="/ai-insights" element={<AIInsights />} />
-            <Route path="/payment-calendar" element={<PaymentCalendar />} />
+            <Route
+              path="/customers/new"
+              element={<CustomerForm />}
+            />
+            <Route
+              path="/customers/:id"
+              element={<CustomerDetails />}
+            />
+            <Route
+              path="/transactions"
+              element={<Transactions />}
+            />
+            <Route
+              path="/collections"
+              element={<Collections />}
+            />
+            <Route
+              path="/ai-insights"
+              element={<AIInsights />}
+            />
+            <Route
+              path="/payment-calendar"
+              element={<PaymentCalendar />}
+            />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/automation" element={<Automation />} />
+            <Route
+              path="/automation"
+              element={<Automation />}
+            />
             <Route path="/team" element={<Team />} />
-            <Route path="/notifications" element={<Notifications />} />
+            <Route
+              path="/notifications"
+              element={<Notifications />}
+            />
             <Route path="/settings" element={<Settings />} />
           </Route>
 
