@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useApp } from "../context/useApp.js";
+import { useAuth } from "../context/useAuth.js";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase.js";
 
@@ -33,16 +34,13 @@ const items = [
 
 export default function Sidebar({ isOpen, onClose }) {
   const { data } = useApp();
+  const { user } = useAuth();
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-
       localStorage.removeItem("khataone_logged_in");
-
       onClose?.();
-
-      // Logout ke baad direct Welcome Page
       window.location.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
@@ -50,10 +48,14 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const name =
-    data?.profile?.name || "Samir Kulkarni";
+    data?.profile?.name?.trim() ||
+    user?.displayName?.trim() ||
+    user?.email?.split("@")[0] ||
+    "Owner";
 
   const initials = name
-    .split(" ")
+    .split(/\s+/)
+    .filter(Boolean)
     .map((word) => word[0])
     .join("")
     .slice(0, 2)
@@ -78,17 +80,14 @@ export default function Sidebar({ isOpen, onClose }) {
             : "-translate-x-full"
         } lg:translate-x-0`}
       >
-
-        {/* =========================
-            LOGO
-        ========================== */}
-        <div className="shrink-0 px-5 pb-3 pt-3">
+        {/* LOGO */}
+        <div className="shrink-0 px-5 pb-2 pt-3">
           <div className="flex items-center gap-3">
             <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#f7f1eb] font-serif text-[15px] font-bold text-[#65182b] shadow-sm">
               K1
             </div>
 
-            <div>
+            <div className="min-w-0">
               <strong className="block text-[20px] font-bold leading-tight tracking-tight">
                 KhataOne
               </strong>
@@ -100,32 +99,24 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* =========================
-            NAVIGATION
-            NO CENTER SPACE
-        ========================== */}
-        <nav className="flex min-h-0 flex-1 flex-col justify-start gap-0.5 overflow-y-auto px-3 pt-2">
-          {items.map(
-            ([label, path, Icon]) => (
-              <NavItem
-                key={path}
-                label={label}
-                path={path}
-                Icon={Icon}
-                onClick={onClose}
-              />
-            ),
-          )}
+        {/* NAVIGATION */}
+        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {items.map(([label, path, Icon]) => (
+            <NavItem
+              key={path}
+              label={label}
+              path={path}
+              Icon={Icon}
+              onClick={onClose}
+            />
+          ))}
         </nav>
 
-        {/* =========================
-            USER + LOGOUT
-        ========================== */}
-        <div className="shrink-0 px-4 pb-4 pt-2">
-          <div className="border-t border-white/10 pt-3">
-
+        {/* USER + LOGOUT */}
+        <div className="shrink-0 px-4 pb-3 pt-1">
+          <div className="border-t border-white/10 pt-2">
             {/* USER */}
-            <div className="flex items-center gap-2.5 px-2 py-1">
+            <div className="flex items-center gap-2.5 px-2 py-1.5">
               <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5eee7] text-[11px] font-bold text-[#65182b]">
                 {initials}
               </div>
@@ -145,7 +136,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <button
               type="button"
               onClick={handleLogout}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[13px] font-medium text-[#f2d6d9] transition-all hover:bg-[#8c2632] hover:text-white active:scale-[0.98]"
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[13px] font-medium text-[#f2d6d9] transition-all hover:bg-[#8c2632] hover:text-white active:scale-[0.98]"
             >
               <LogOut size={16} />
               Logout
@@ -168,7 +159,7 @@ function NavItem({
       to={path}
       onClick={onClick}
       className={({ isActive }) =>
-        `group flex w-full items-center gap-3 rounded-xl px-3 py-[9px] text-[13px] transition-all duration-200 ${
+        `group flex w-full items-center gap-3 rounded-xl px-3 py-[8px] text-[13px] transition-all duration-200 ${
           isActive
             ? "bg-[#76242e] font-semibold text-white shadow-lg shadow-black/10"
             : "text-[#e2c9cc] hover:bg-white/[0.07] hover:text-white"
@@ -181,9 +172,7 @@ function NavItem({
         className="shrink-0 transition-transform duration-200 group-hover:scale-105"
       />
 
-      <span className="truncate">
-        {label}
-      </span>
+      <span className="truncate">{label}</span>
     </NavLink>
   );
 }

@@ -5,7 +5,6 @@ export default function CashFlowChart({ transactions = [] }) {
     const months = {};
     const now = new Date();
 
-    // Last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(
         now.getFullYear(),
@@ -60,9 +59,7 @@ export default function CashFlowChart({ transactions = [] }) {
         Number(item.amount || 0),
       );
 
-      const type = String(
-        item.type || "",
-      )
+      const type = String(item.type || "")
         .trim()
         .toLowerCase();
 
@@ -97,7 +94,6 @@ export default function CashFlowChart({ transactions = [] }) {
 
     const data = Object.values(months);
 
-    // Empty chart ke liye reference-style demo baseline
     const hasRealData = data.some(
       (item) =>
         item.received > 0 ||
@@ -125,8 +121,7 @@ export default function CashFlowChart({ transactions = [] }) {
     () =>
       chartData.reduce(
         (sum, item) =>
-          sum +
-          (item.demo ? 0 : item.received),
+          sum + (item.demo ? 0 : item.received),
         0,
       ),
     [chartData],
@@ -136,8 +131,7 @@ export default function CashFlowChart({ transactions = [] }) {
     () =>
       chartData.reduce(
         (sum, item) =>
-          sum +
-          (item.demo ? 0 : item.expense),
+          sum + (item.demo ? 0 : item.expense),
         0,
       ),
     [chartData],
@@ -187,9 +181,9 @@ export default function CashFlowChart({ transactions = [] }) {
   const getY = (value) =>
     padding.top +
     graphHeight -
-    (value / maxValue) * graphHeight;
+    (value / maxValue) *
+      graphHeight;
 
-  // Smooth curve
   const createSmoothPath = (key) => {
     if (!chartData.length) return "";
 
@@ -206,7 +200,11 @@ export default function CashFlowChart({ transactions = [] }) {
 
     let path = `M ${points[0].x} ${points[0].y}`;
 
-    for (let i = 0; i < points.length - 1; i++) {
+    for (
+      let i = 0;
+      i < points.length - 1;
+      i++
+    ) {
       const current = points[i];
       const next = points[i + 1];
 
@@ -249,8 +247,7 @@ export default function CashFlowChart({ transactions = [] }) {
     );
 
   return (
-    <section className="h-[382px] overflow-hidden rounded-[22px] border border-[#ddd6d0] bg-[#fffdfb] p-6 shadow-sm dark:border-[#423238] dark:bg-[#2a2024]">
-      
+    <section className="flex h-full min-h-[382px] flex-col overflow-hidden rounded-[22px] border border-[#ddd6d0] bg-[#fffdfb] p-6 shadow-sm dark:border-[#423238] dark:bg-[#2a2024]">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -261,7 +258,6 @@ export default function CashFlowChart({ transactions = [] }) {
           <div className="mt-1 flex items-center gap-2">
             <span className="relative flex size-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#3f8062] opacity-60" />
-
               <span className="relative inline-flex size-2 rounded-full bg-[#3f8062]" />
             </span>
 
@@ -297,7 +293,7 @@ export default function CashFlowChart({ transactions = [] }) {
       </div>
 
       {/* Chart */}
-      <div className="mt-4 h-[250px] w-full">
+      <div className="mt-4 min-h-0 flex-1 w-full">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="h-full w-full"
@@ -345,48 +341,57 @@ export default function CashFlowChart({ transactions = [] }) {
             </linearGradient>
           </defs>
 
-          {/* Horizontal grid */}
-          {[0, 1, 2, 3, 4].map((item) => {
-            const y =
-              padding.top +
-              (item * graphHeight) / 4;
+          {/* Grid */}
+          {[0, 1, 2, 3, 4].map(
+            (item) => {
+              const y =
+                padding.top +
+                (item * graphHeight) / 4;
 
-            const value =
-              maxValue -
-              (maxValue * item) / 4;
+              const value =
+                maxValue -
+                (maxValue * item) / 4;
 
-            return (
-              <g key={item}>
-                <line
-                  x1={padding.left}
-                  x2={width - padding.right}
-                  y1={y}
-                  y2={y}
-                  stroke="#eee9e5"
-                  strokeWidth="1"
-                />
+              return (
+                <g key={item}>
+                  <line
+                    x1={padding.left}
+                    x2={width - padding.right}
+                    y1={y}
+                    y2={y}
+                    stroke="#eee9e5"
+                    strokeWidth="1"
+                  />
 
-                <text
-                  x="8"
-                  y={y + 4}
-                  fontSize="10"
-                  fill="#91868a"
-                >
-                  {Math.round(value / 1000)}k
-                </text>
-              </g>
-            );
-          })}
+                  <text
+                    x="8"
+                    y={y + 4}
+                    fontSize="10"
+                    fill="#91868a"
+                  >
+                    {Math.round(
+                      value / 1000,
+                    )}
+                    k
+                  </text>
+                </g>
+              );
+            },
+          )}
 
-          {/* Burgundy area */}
+          {/* Expense area */}
           <path
-            d={createAreaPath(expensePath)}
+            d={createAreaPath(
+              expensePath,
+            )}
             fill="url(#expenseGradient)"
           />
 
-          {/* Green area */}
+          {/* Received area */}
           <path
-            d={createAreaPath(receivedPath)}
+            d={createAreaPath(
+              receivedPath,
+            )}
             fill="url(#receivedGradient)"
           />
 
@@ -412,7 +417,7 @@ export default function CashFlowChart({ transactions = [] }) {
             className="transition-all duration-700"
           />
 
-          {/* Month labels */}
+          {/* Months */}
           {chartData.map(
             (item, index) => (
               <text
@@ -430,10 +435,11 @@ export default function CashFlowChart({ transactions = [] }) {
         </svg>
       </div>
 
-      {/* Footer legend */}
-      <div className="mt-1 flex items-center justify-center gap-5 text-[10px]">
+      {/* Legend */}
+      <div className="mt-2 flex shrink-0 items-center justify-center gap-5 text-[10px]">
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[#3f8062]" />
+
           <span className="text-[#82777b]">
             Money received
           </span>
@@ -441,6 +447,7 @@ export default function CashFlowChart({ transactions = [] }) {
 
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[#6b1d2b]" />
+
           <span className="text-[#82777b]">
             Expenses
           </span>

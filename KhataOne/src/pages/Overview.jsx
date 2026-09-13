@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/useApp.js";
+import { useAuth } from "../context/useAuth.js";
 import Modal from "../components/Modal.jsx";
 import StatCard from "../components/StatCard.jsx";
 import MoneyStuckCard from "../components/MoneyStuckCard.jsx";
@@ -11,6 +12,7 @@ import QuickActions from "../components/QuickActions.jsx";
 
 export default function Overview() {
   const { data, customers = [] } = useApp();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [workflow, setWorkflow] = useState("");
@@ -21,11 +23,8 @@ export default function Overview() {
     [data?.transactions],
   );
 
-  // Realtime clock - greeting automatically update hoga
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
 
     return () => clearInterval(timer);
   }, []);
@@ -37,18 +36,14 @@ export default function Overview() {
     if (hour >= 12 && hour < 17) return "Good afternoon";
     if (hour >= 17 && hour < 21) return "Good evening";
 
-    return "Good night";
+    return "Good Night";
   }, [currentTime]);
 
-  // Currency formatter
-  const money = (value = 0) => {
-    const amount = Number(value || 0);
-
-    return `₹${amount.toLocaleString("en-IN", {
+  const money = (value = 0) =>
+    `₹${Number(value || 0).toLocaleString("en-IN", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })}`;
-  };
 
   const dashboard = useMemo(() => {
     const now = new Date();
@@ -60,8 +55,7 @@ export default function Overview() {
 
     const overdueCustomers = customers.filter(
       (customer) =>
-        Number(customer.outstanding || 0) > 0 &&
-        customer.overdue?.length,
+        Number(customer.outstanding || 0) > 0 && customer.overdue?.length,
     );
 
     const overdue = overdueCustomers.reduce(
@@ -70,15 +64,8 @@ export default function Overview() {
     );
 
     const payable = transactions
-      .filter(
-        (item) =>
-          item.type === "payable" ||
-          item.type === "expense",
-      )
-      .reduce(
-        (sum, item) => sum + Number(item.amount || 0),
-        0,
-      );
+      .filter((item) => item.type === "payable" || item.type === "expense")
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -88,37 +75,27 @@ export default function Overview() {
         const date = new Date(item.date);
 
         return (
-          (item.type === "payment" ||
-            item.type === "received" ||
-            item.type === "collection") &&
+          ["payment", "received", "collection"].includes(item.type) &&
           date.getMonth() === currentMonth &&
           date.getFullYear() === currentYear
         );
       })
-      .reduce(
-        (sum, item) => sum + Number(item.amount || 0),
-        0,
-      );
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     const todayCollected = transactions
       .filter((item) => {
-        if (
-          item.type !== "payment" &&
-          item.type !== "received" &&
-          item.type !== "collection"
-        ) {
+        if (!["payment", "received", "collection"].includes(item.type)) {
           return false;
         }
 
+        const date = new Date(item.date);
+
         return (
-          new Date(item.date).toDateString() ===
-          now.toDateString()
+          !Number.isNaN(date.getTime()) &&
+          date.toDateString() === now.toDateString()
         );
       })
-      .reduce(
-        (sum, item) => sum + Number(item.amount || 0),
-        0,
-      );
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
     return {
       receivable,
@@ -133,28 +110,18 @@ export default function Overview() {
     };
   }, [customers, transactions]);
 
-  const attention = useMemo(() => {
-    return [...customers]
-      .filter((item) => Number(item.outstanding || 0) > 0)
-      .sort(
-        (a, b) =>
-          Number(a.score || 100) -
-          Number(b.score || 100),
-      );
-  }, [customers]);
+  const attention = useMemo(
+    () =>
+      [...customers]
+        .filter((item) => Number(item.outstanding || 0) > 0)
+        .sort((a, b) => Number(a.score || 100) - Number(b.score || 100)),
+    [customers],
+  );
 
   const groups = useMemo(() => {
     const critical = attention
-      .filter(
-        (item) =>
-          item.overdue?.length &&
-          Number(item.score || 100) < 50,
-      )
-      .reduce(
-        (sum, item) =>
-          sum + Number(item.outstanding || 0),
-        0,
-      );
+      .filter((item) => item.overdue?.length && Number(item.score || 100) < 50)
+      .reduce((sum, item) => sum + Number(item.outstanding || 0), 0);
 
     const high = attention
       .filter(
@@ -163,26 +130,15 @@ export default function Overview() {
           Number(item.score || 100) >= 50 &&
           Number(item.score || 100) < 75,
       )
-      .reduce(
-        (sum, item) =>
-          sum + Number(item.outstanding || 0),
-        0,
-      );
+      .reduce((sum, item) => sum + Number(item.outstanding || 0), 0);
 
     const dueSoon = attention
       .filter((item) => !item.overdue?.length)
-      .reduce(
-        (sum, item) =>
-          sum + Number(item.outstanding || 0),
-        0,
-      );
+      .reduce((sum, item) => sum + Number(item.outstanding || 0), 0);
 
     const recentlyAdded = Math.max(
       0,
-      dashboard.receivable -
-        critical -
-        high -
-        dueSoon,
+      dashboard.receivable - critical - high - dueSoon,
     );
 
     return [
@@ -206,17 +162,35 @@ export default function Overview() {
   }, [attention, dashboard.receivable]);
 
   const openAction = (action) => {
-    if (action === "customer") navigate("/customers");
-    else if (action === "transaction") navigate("/transactions");
-    else if (action === "reminder") navigate("/collections");
-    else setWorkflow(action);
+    if (action === "customer") {
+      navigate("/customers");
+    } else if (action === "transaction") {
+      navigate("/transactions");
+    } else if (action === "reminder") {
+      navigate("/collections");
+    } else {
+      setWorkflow(action);
+    }
   };
 
-  const userName =
-    data?.profile?.name?.split(" ")[0] || "User";
+  /*
+    Name priority:
+    1. Profile name
+    2. Firebase Auth displayName
+    3. Business name
+    4. Email username
+    5. User
+  */
+  const fullName =
+    data?.profile?.name ||
+    user?.displayName ||
+    data?.business?.name ||
+    user?.email?.split("@")[0] ||
+    "User";
 
+  const userName = String(fullName).trim();
   return (
-<div className="mx-auto w-full max-w-[1320px] space-y-5 px-1 pb-5">
+    <div className="mx-auto w-full max-w-[1320px] space-y-5 px-1 pb-5">
       {/* Welcome */}
       <section className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div>
@@ -237,9 +211,8 @@ export default function Overview() {
           <span className="text-lg">→</span>
         </button>
       </section>
-
       {/* Stats */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="Total receivable"
           value={money(dashboard.receivable)}
@@ -274,49 +247,23 @@ export default function Overview() {
           type="collected"
           tone="green"
         />
-      </section>
-
-      {/* Money + Health */}
-      <section className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
-        <MoneyStuckCard
-          groups={groups}
-          total={dashboard.receivable}
-          money={money}
-          onRemind={() => navigate("/collections")}
-        />
-
-        <BusinessHealth
-          customers={customers}
-          transactions={transactions}
-          receivable={dashboard.receivable}
-          overdue={dashboard.overdue}
-          collected={dashboard.collectedThisMonth}
-        />
-      </section>
-
-      {/* AI */}
-      <section>
-        <AIInsights
-          risky={attention
-            .filter(
-              (item) =>
-                Number(item.score || 100) < 75,
-            )
-            .slice(0, 3)}
-          likely={attention
-            .filter(
-              (item) =>
-                Number(item.score || 100) >= 75,
-            )
-            .slice(0, 3)}
-          money={money}
-        />
-      </section>
-
+      </section>{" "}
+      
       {/* Chart */}
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <CashFlowChart transactions={transactions} />
-        <QuickActions onAction={openAction} />
+      <section className="grid items-stretch gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="h-full">
+          <CashFlowChart transactions={transactions} />
+        </div>
+
+        <div className="h-full">
+          <BusinessHealth
+            customers={customers}
+            transactions={transactions}
+            receivable={dashboard.receivable}
+            overdue={dashboard.overdue}
+            collected={dashboard.collectedThisMonth}
+          />
+        </div>
       </section>
 
       {/* Modal */}
@@ -349,6 +296,29 @@ export default function Overview() {
           </div>
         </Modal>
       )}
+      {/* AI */}
+      <section>
+        <AIInsights
+          risky={attention
+            .filter((item) => Number(item.score || 100) < 75)
+            .slice(0, 3)}
+          likely={attention
+            .filter((item) => Number(item.score || 100) >= 75)
+            .slice(0, 3)}
+          money={money}
+        />
+      </section>
+      {/* Money + Health */}
+      <section className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
+        <MoneyStuckCard
+          groups={groups}
+          total={dashboard.receivable}
+          money={money}
+          onRemind={() => navigate("/collections")}
+        />
+
+        <QuickActions onAction={openAction} />
+      </section>
     </div>
   );
 }
