@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { useApp } from "../context/useApp.js";
 import { useAuth } from "../context/useAuth.js";
+
 import {
   Bell,
   Moon,
@@ -17,6 +18,7 @@ import {
 
 export default function Header({ onMenu }) {
   const navigate = useNavigate();
+
   const { theme, toggleTheme } = useTheme();
   const { customers = [], notifications = [] } = useApp();
   const { user, logout } = useAuth();
@@ -24,6 +26,7 @@ export default function Header({ onMenu }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
   const searchRef = useRef(null);
   const profileRef = useRef(null);
 
@@ -32,7 +35,9 @@ export default function Header({ onMenu }) {
   ).length;
 
   const results = useMemo(() => {
-    if (!query.trim()) return customers.slice(0, 4);
+    if (!query.trim()) {
+      return customers.slice(0, 4);
+    }
 
     return customers
       .filter((customer) =>
@@ -60,13 +65,17 @@ export default function Header({ onMenu }) {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside,
+    );
 
-    return () =>
+    return () => {
       document.removeEventListener(
         "mousedown",
         handleClickOutside,
       );
+    };
   }, []);
 
   const handleKeyDown = (e) => {
@@ -75,7 +84,9 @@ export default function Header({ onMenu }) {
       setOpen(false);
     }
 
-    if (e.key === "Escape") setOpen(false);
+    if (e.key === "Escape") {
+      setOpen(false);
+    }
   };
 
   const userName =
@@ -90,11 +101,18 @@ export default function Header({ onMenu }) {
     .slice(0, 2)
     .toUpperCase();
 
+  /* =========================
+     LOGOUT → WELCOME PAGE
+  ========================== */
   const handleLogout = async () => {
     try {
-      await logout();
       setProfileOpen(false);
-      navigate("/login", { replace: true });
+      setOpen(false);
+
+      await logout();
+
+      // Logout ke baad direct Welcome page
+      window.location.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -103,7 +121,9 @@ export default function Header({ onMenu }) {
   return (
     <header className="relative z-40 flex h-[60px] items-center gap-2 border-b border-[#ebe7e3] bg-white/90 px-3 backdrop-blur transition-colors duration-300 sm:h-[76px] sm:gap-4 sm:px-6 lg:px-10 dark:border-[#423238] dark:bg-[#281f23]/90">
 
-      {/* MOBILE MENU */}
+      {/* =========================
+          MOBILE MENU
+      ========================== */}
       <button
         onClick={onMenu}
         aria-label="Open navigation"
@@ -112,7 +132,9 @@ export default function Header({ onMenu }) {
         <Menu size={19} />
       </button>
 
-      {/* SEARCH */}
+      {/* =========================
+          SEARCH
+      ========================== */}
       <div
         ref={searchRef}
         className="relative min-w-0 flex-1 lg:max-w-[440px]"
@@ -148,6 +170,7 @@ export default function Header({ onMenu }) {
                 setOpen(false);
               }}
               className="shrink-0 text-[#8b8383]"
+              aria-label="Clear search"
             >
               <X size={15} />
             </button>
@@ -158,7 +181,9 @@ export default function Header({ onMenu }) {
           </kbd>
         </div>
 
-        {/* SEARCH DROPDOWN */}
+        {/* =========================
+            SEARCH DROPDOWN
+        ========================== */}
         {open && (
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-xl border border-[#ebe7e3] bg-white shadow-xl dark:border-[#423238] dark:bg-[#2d2428]">
             {results.length > 0 ? (
@@ -171,7 +196,10 @@ export default function Header({ onMenu }) {
                   <button
                     key={customer.id || index}
                     onClick={() => {
-                      navigate(`/customers/${customer.id}`);
+                      navigate(
+                        `/customers/${customer.id}`,
+                      );
+
                       setOpen(false);
                       setQuery("");
                     }}
@@ -187,7 +215,8 @@ export default function Header({ onMenu }) {
                       </span>
 
                       <span className="block truncate text-[10px] text-[#8b8383]">
-                        {customer.phone || "No phone number"}
+                        {customer.phone ||
+                          "No phone number"}
                       </span>
                     </span>
                   </button>
@@ -212,7 +241,9 @@ export default function Header({ onMenu }) {
         )}
       </div>
 
-      {/* RIGHT ACTIONS */}
+      {/* =========================
+          RIGHT ACTIONS
+      ========================== */}
       <div className="flex shrink-0 items-center gap-3 sm:gap-4">
 
         {/* THEME */}
@@ -232,21 +263,34 @@ export default function Header({ onMenu }) {
         <button
           className="relative grid size-7 place-items-center text-[#8b8383] transition hover:text-[#8f2039] dark:text-[#bbaeb1]"
           aria-label="Notifications"
-          onClick={() => navigate("/notifications")}
+          onClick={() =>
+            navigate("/notifications")
+          }
         >
           <Bell size={18} />
 
           {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 grid min-w-[14px] h-[14px] place-items-center rounded-full bg-[#8f2039] px-1 text-[8px] font-bold text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
+            <span className="absolute -right-1 -top-1 grid h-[14px] min-w-[14px] place-items-center rounded-full bg-[#8f2039] px-1 text-[8px] font-bold text-white">
+              {unreadCount > 99
+                ? "99+"
+                : unreadCount}
             </span>
           )}
         </button>
 
-        {/* PROFILE */}
-        <div ref={profileRef} className="relative">
+        {/* =========================
+            PROFILE
+        ========================== */}
+        <div
+          ref={profileRef}
+          className="relative"
+        >
           <button
-            onClick={() => setProfileOpen((value) => !value)}
+            onClick={() =>
+              setProfileOpen(
+                (value) => !value,
+              )
+            }
             aria-label="Open profile menu"
             className="grid size-8 shrink-0 place-items-center rounded-full bg-[#7b2335] text-[10px] font-bold text-white transition hover:scale-105 sm:size-9"
           >
@@ -278,6 +322,8 @@ export default function Header({ onMenu }) {
 
               {/* MENU */}
               <div className="p-2">
+
+                {/* SETTINGS */}
                 <button
                   onClick={() => {
                     navigate("/settings");
@@ -289,6 +335,7 @@ export default function Header({ onMenu }) {
                   Settings
                 </button>
 
+                {/* LOGOUT */}
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-medium text-[#b33e4b] transition hover:bg-[#fff1f2] dark:hover:bg-[#3b292e]"
@@ -296,6 +343,7 @@ export default function Header({ onMenu }) {
                   <LogOut size={16} />
                   Logout
                 </button>
+
               </div>
             </div>
           )}

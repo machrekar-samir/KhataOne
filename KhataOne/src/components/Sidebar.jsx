@@ -1,7 +1,8 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useApp } from "../context/useApp.js";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase.js";
+
 import {
   Bell,
   CalendarDays,
@@ -32,20 +33,25 @@ const items = [
 
 export default function Sidebar({ isOpen, onClose }) {
   const { data } = useApp();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
+
       localStorage.removeItem("khataone_logged_in");
-      navigate("/login");
+
       onClose?.();
+
+      // Logout ke baad direct Welcome Page
+      window.location.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  const name = data?.profile?.name || "Samir Kulkarni";
+  const name =
+    data?.profile?.name || "Samir Kulkarni";
+
   const initials = name
     .split(" ")
     .map((word) => word[0])
@@ -55,22 +61,28 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* MOBILE OVERLAY */}
       {isOpen && (
         <button
           aria-label="Close navigation"
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={onClose}
         />
       )}
 
+      {/* SIDEBAR */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[246px] flex-col overflow-hidden bg-[#58151d] text-white shadow-xl transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         } lg:translate-x-0`}
       >
-        {/* Logo */}
-        <div className="shrink-0 px-5 pt-5 pb-4">
+
+        {/* =========================
+            LOGO
+        ========================== */}
+        <div className="shrink-0 px-5 pb-3 pt-3">
           <div className="flex items-center gap-3">
             <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[#f7f1eb] font-serif text-[15px] font-bold text-[#65182b] shadow-sm">
               K1
@@ -88,22 +100,31 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Navigation - NO SCROLL */}
-        <nav className="flex flex-1 flex-col justify-center gap-0.5 px-3">
-          {items.map(([label, path, Icon]) => (
-            <NavItem
-              key={path}
-              label={label}
-              path={path}
-              Icon={Icon}
-              onClick={onClose}
-            />
-          ))}
+        {/* =========================
+            NAVIGATION
+            NO CENTER SPACE
+        ========================== */}
+        <nav className="flex min-h-0 flex-1 flex-col justify-start gap-0.5 overflow-y-auto px-3 pt-2">
+          {items.map(
+            ([label, path, Icon]) => (
+              <NavItem
+                key={path}
+                label={label}
+                path={path}
+                Icon={Icon}
+                onClick={onClose}
+              />
+            ),
+          )}
         </nav>
 
-        {/* Bottom User Section */}
-        <div className="shrink-0 px-4 pb-4">
+        {/* =========================
+            USER + LOGOUT
+        ========================== */}
+        <div className="shrink-0 px-4 pb-4 pt-2">
           <div className="border-t border-white/10 pt-3">
+
+            {/* USER */}
             <div className="flex items-center gap-2.5 px-2 py-1">
               <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5eee7] text-[11px] font-bold text-[#65182b]">
                 {initials}
@@ -120,7 +141,9 @@ export default function Sidebar({ isOpen, onClose }) {
               </div>
             </div>
 
+            {/* LOGOUT */}
             <button
+              type="button"
               onClick={handleLogout}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[13px] font-medium text-[#f2d6d9] transition-all hover:bg-[#8c2632] hover:text-white active:scale-[0.98]"
             >
@@ -134,7 +157,12 @@ export default function Sidebar({ isOpen, onClose }) {
   );
 }
 
-function NavItem({ label, path, Icon, onClick }) {
+function NavItem({
+  label,
+  path,
+  Icon,
+  onClick,
+}) {
   return (
     <NavLink
       to={path}
@@ -153,7 +181,9 @@ function NavItem({ label, path, Icon, onClick }) {
         className="shrink-0 transition-transform duration-200 group-hover:scale-105"
       />
 
-      <span className="truncate">{label}</span>
+      <span className="truncate">
+        {label}
+      </span>
     </NavLink>
   );
 }

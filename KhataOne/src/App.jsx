@@ -5,6 +5,7 @@ import { useAuth } from "./context/useAuth.js";
 
 import Layout from "./components/Layout.jsx";
 
+import Welcome from "./pages/Welcome.jsx";
 import Overview from "./pages/Overview.jsx";
 import Customers from "./pages/Customers.jsx";
 import CustomerDetails from "./pages/CustomerDetails.jsx";
@@ -43,7 +44,13 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fcf7f2]">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#7b2633] border-t-transparent" />
+      </div>
+    );
+  }
 
   return user ? (
     <Navigate to="/overview" replace />
@@ -57,6 +64,14 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <Routes>
+
+          {/* WEBSITE OPEN → WELCOME */}
+          <Route
+            path="/"
+            element={<Welcome />}
+          />
+
+          {/* LOGIN */}
           <Route
             path="/login"
             element={
@@ -66,6 +81,7 @@ export default function App() {
             }
           />
 
+          {/* SIGN UP */}
           <Route
             path="/signup"
             element={
@@ -75,6 +91,7 @@ export default function App() {
             }
           />
 
+          {/* PROTECTED APP */}
           <Route
             element={
               <ProtectedRoute>
@@ -84,52 +101,25 @@ export default function App() {
           >
             <Route path="/overview" element={<Overview />} />
             <Route path="/customers" element={<Customers />} />
-            <Route
-              path="/customers/new"
-              element={<CustomerForm />}
-            />
-            <Route
-              path="/customers/:id"
-              element={<CustomerDetails />}
-            />
-            <Route
-              path="/transactions"
-              element={<Transactions />}
-            />
-            <Route
-              path="/collections"
-              element={<Collections />}
-            />
-            <Route
-              path="/ai-insights"
-              element={<AIInsights />}
-            />
-            <Route
-              path="/payment-calendar"
-              element={<PaymentCalendar />}
-            />
+            <Route path="/customers/new" element={<CustomerForm />} />
+            <Route path="/customers/:id" element={<CustomerDetails />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/collections" element={<Collections />} />
+            <Route path="/ai-insights" element={<AIInsights />} />
+            <Route path="/payment-calendar" element={<PaymentCalendar />} />
             <Route path="/reports" element={<Reports />} />
-            <Route
-              path="/automation"
-              element={<Automation />}
-            />
+            <Route path="/automation" element={<Automation />} />
             <Route path="/team" element={<Team />} />
-            <Route
-              path="/notifications"
-              element={<Notifications />}
-            />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
 
-          <Route
-            path="/"
-            element={<Navigate to="/overview" replace />}
-          />
-
+          {/* WRONG URL → WELCOME */}
           <Route
             path="*"
-            element={<Navigate to="/overview" replace />}
+            element={<Navigate to="/" replace />}
           />
+
         </Routes>
       </AppProvider>
     </ThemeProvider>
