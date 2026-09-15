@@ -23,6 +23,8 @@ const defaults = [
     action: "Send a friendly reminder",
     actionDetail: "Notify customer on the due date",
     status: "Active",
+    enabled: true,
+    aiControlled: true,
     tone: "green",
     icon: "calendar",
     actionIcon: "user",
@@ -34,6 +36,8 @@ const defaults = [
     action: "Send a professional reminder",
     actionDetail: "Notify customer 3 days after due date",
     status: "Active",
+    enabled: true,
+    aiControlled: true,
     tone: "amber",
     icon: "clock",
     actionIcon: "mail",
@@ -45,16 +49,15 @@ const defaults = [
     action: "Notify owner",
     actionDetail: "Send an alert to business owner",
     status: "Paused",
+    enabled: false,
+    aiControlled: true,
     tone: "red",
     icon: "user",
     actionIcon: "bell",
   },
 ];
 
-export const subscribeToAutomations = (
-  uid,
-  callback,
-) => {
+export const subscribeToAutomations = (uid, callback) => {
   if (!uid) {
     callback([]);
     return () => {};
@@ -71,9 +74,7 @@ export const subscribeToAutomations = (
             ...item.data(),
           }))
           .sort((a, b) =>
-            String(a.id).localeCompare(
-              String(b.id),
-            ),
+            String(a.id).localeCompare(String(b.id)),
           ),
       );
     },
@@ -82,15 +83,13 @@ export const subscribeToAutomations = (
         "Automation subscription error:",
         error,
       );
+
       callback([]);
     },
   );
 };
 
-/* Create defaults only when automation collection is empty */
-export const initializeAutomations = async (
-  uid,
-) => {
+export const initializeAutomations = async (uid) => {
   if (!uid) return;
 
   const snapshot = await getDocs(ref(uid));
@@ -130,10 +129,13 @@ export const addAutomation = async (
   }
 
   const data = { ...(value || {}) };
+
   delete data.id;
 
   const result = await addDoc(ref(uid), {
     ...data,
+    enabled: data.enabled !== false,
+    aiControlled: data.aiControlled !== false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -181,5 +183,34 @@ export const deleteAutomation = async (
       "automations",
       id,
     ),
+  );
+};
+
+export const setAutomationEnabled = async (
+  uid,
+  id,
+  enabled,
+) => {
+  return updateAutomation(
+    uid,
+    id,
+    {
+      enabled: Boolean(enabled),
+      status: enabled ? "Active" : "Paused",
+    },
+  );
+};
+
+export const setAIAutomation = async (
+  uid,
+  id,
+  enabled,
+) => {
+  return updateAutomation(
+    uid,
+    id,
+    {
+      aiControlled: Boolean(enabled),
+    },
   );
 };
